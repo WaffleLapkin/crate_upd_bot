@@ -16,6 +16,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d25d88fd6b8041580a654f9d0c581a047baee2b3efee13275f2fc392fc75034"
 
 [[package]]
+name = "arraylib"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "892821d5239a77dd14c50b1f4431af0c899dcf1d6e56b55ce9780380e00f28bf"
+
+[[package]]
 name = "async-stream"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,6 +208,7 @@ checksum = "6d375c433320f6c5057ae04a04376eef4d04ce2801448cf8863a78da99107be4"
 name = "crate_upd_bot"
 version = "0.1.0"
 dependencies = [
+ "arraylib",
  "async-trait",
  "carapax",
  "derive_more",
