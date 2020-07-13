@@ -1,0 +1,29 @@
+# # Channel to post **ALL** updates (leave comment to turn this feature off)
+# channel =
+
+# # Delay between index fetches
+# pull_delay = { secs = 300, nanos = 0 } # 5 min
+
+# # Logging level (one of "error", "warn", "info", "debug" and "trace")
+# loglevel = "info"
+
+# # Url of crates.io index (git repo)
+# index_url = "https://github.com/rust-lang/crates.io-index.git"
+
+# # Delay after which bot will retry telegram-request
+# retry_delay = { secs = 10, nanos = 0 }
+
+# # Delay between broadcast send messages
+# broadcast_delay_millis = 250
+
+# # Delay between notifying about updates
+# update_delay_millis = 1300
+
+# Token of the telegram bot
+bot_token = "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+# Database configuration
+[db]
+host = "host"
+user = "user"
+dbname = "dbname"
