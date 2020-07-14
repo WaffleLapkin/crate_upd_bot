@@ -19,6 +19,7 @@ use std::{
 };
 use fntools::value::ValueExt;
 use crate::cfg::RetryDelay;
+use crate::krate::Crate;
 
 pub fn setup(bot: Api, db: Database, retry_delay: RetryDelay) -> LongPoll<Dispatcher<(Api, Database, RetryDelay)>> {
     let mut dp = Dispatcher::new((bot.clone(), db, retry_delay));
@@ -54,7 +55,7 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                 "/start" => {
                     tryn(5, Duration::from_millis(10000 /* 10 secs */), || {
                         bot.execute(
-                            SendMessage::new(chat_id, "Greeting message") // TODO
+                            SendMessage::new(chat_id, "Hi! I will notify you about updates of crates. Use /subscribe to subscribe for updates of crates you want to be notified about.\n\nIn case you want to see <b>all</b> updates go to @crates_updates\n\nAuthor: @wafflelapkin\nHis channel [ru]: @ihatereality\nMy source: t/b published")
                                 .parse_mode(ParseMode::Html),
                         )
                     })
@@ -68,11 +69,16 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                                 .exists()
                             {
                                 db.subscribe(chat_id, krate).await?;
+                                let v = match Crate::read_last(krate).await {
+                                    Ok(krate) => format!(" (current version <code>{}</code> {})", krate.id.vers, krate.html_links()),
+                                    Err(_) => String::new(),
+                                };
                                 tryn(5, retry_delay.0, || bot.execute(
                                     SendMessage::new(
                                         chat_id,
-                                        format!("You've successfully subscribed for updates on <code>{}</code> crate. Use /unsubscribe to unsubscribe.", krate))
+                                        format!("You've successfully subscribed for updates on <code>{}</code>{} crate. Use /unsubscribe to unsubscribe.", krate, v))
                                         .parse_mode(ParseMode::Html)
+                                        .disable_web_page_preview(true)
                                 )).await?;
                             } else {
                                 tryn(5, retry_delay.0, || {
@@ -118,7 +124,21 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                     }
                 }
                 "/list" => {
-                    let subscriptions = db.list_subscriptions(chat_id).await?;
+                    let mut subscriptions = db.list_subscriptions(chat_id).await?;
+                    for sub in &mut subscriptions {
+                        match Crate::read_last(sub).await {
+                            Ok(krate) => {
+                                sub.push('#');
+                                sub.push_str(&krate.id.vers);
+                                sub.push_str("</code> ");
+                                sub.push_str(&krate.html_links());
+                            },
+                            Err(_) => {
+                                sub.push_str(" </code>");
+                                /* silently ignore error & just don't add links */
+                            },
+                        }
+                    }
 
                     if subscriptions.is_empty() {
                         tryn(5, retry_delay.0, || bot.execute(
@@ -133,11 +153,12 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                                 SendMessage::new(
                                     chat_id,
                                     format!(
-                                        "You are currently subscribed to:\n— <code>{}</code>",
-                                        subscriptions.join("</code>\n— <code>")
+                                        "You are currently subscribed to:\n— <code>{}",
+                                        subscriptions.join("\n— <code>")
                                     ),
                                 )
-                                .parse_mode(ParseMode::Html),
+                                .parse_mode(ParseMode::Html)
+                                .disable_web_page_preview(true),
                             )
                         })
                         .await?;

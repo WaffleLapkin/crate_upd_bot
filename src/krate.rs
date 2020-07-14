@@ -1,3 +1,10 @@
+use tokio::fs::File;
+use tokio::io::{BufReader, AsyncBufReadExt};
+use tokio::stream::StreamExt;
+use tokio::io;
+use crate::util::crate_path;
+use std::path::{PathBuf, Path};
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Crate {
     // TODO: stole from crates.io repo?
@@ -36,5 +43,25 @@ impl Crate {
             krate = self.id.name,
             version = self.id.vers,
         )
+    }
+
+    pub fn html_links(&self) -> String {
+        format!(
+            "<a href='{docs}'>[docs.rs]</a> \
+             <a href='{crates}'>[crates.io]</a> \
+             <a href='{lib}'>[lib.rs]</a>",
+            docs = self.docsrs(),
+            crates = self.cratesio(),
+            lib = self.librs(),
+        )
+    }
+
+    pub async fn read_last(name: &str) -> io::Result<Self> {
+        let file = File::open(Path::new("./index").join(crate_path(name))).await?;
+        let mut lines = BufReader::new(file).lines();
+        let mut last = None;
+        while let next @ Some(_) = lines.next().await.transpose()? { last = next }
+        serde_json::from_str(&last.unwrap())
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
     }
 }

@@ -131,7 +131,7 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
                             prev = Some(krate);
                         }
                         '+' => {
-                            assert!(next.is_none(), "Expected number of additions <= 1 per commit");
+                            assert!(next.is_none(), "Expected number of additions = 1 per commit");
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
                                 .expect("cound't deserialize crate");
@@ -150,7 +150,7 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
         }),
     )?;
 
-    let next = next.expect("" /* TODO */);
+    let next = next.expect("Expected number of additions = 1 per commit");
     match (prev.as_ref().map(|c| c.yanked), next.yanked) {
         /* was yanked, is yanked */
         (None, false) => {
@@ -170,8 +170,8 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
         }
         _unexpected => {
             // Something unexpected happened
-            log::warn!("Unexpected notify input: {:?}, {:?}", next, prev);
-            Err(git2::Error::from_str("")) // TODO
+            log::warn!("Unexpected diff_one input: {:?}, {:?}", next, prev);
+            Err(git2::Error::from_str("Unexpected diff"))
         }
     }
 }
@@ -179,37 +179,22 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
 async fn notify(krate: Crate, action: ActionKind, bot: &Api, db: &Database, cfg: &cfg::Config) {
     let message = match action {
         ActionKind::NewVersion => format!(
-                "Crate was updated: <code>{krate}#{version}</code> \
-                    <a href='{docs}'>[docs.rs]</a> \
-                    <a href='{crates}'>[crates.io]</a> \
-                    <a href='{lib}'>[lib.rs]</a>",
+                "Crate was updated: <code>{krate}#{version}</code> {links}",
                 krate = krate.id.name,
                 version = krate.id.vers,
-                docs = krate.docsrs(),
-                crates = krate.cratesio(),
-                lib = krate.librs(),
-            ),
+                links = krate.html_links(),
+        ),
         ActionKind::Yanked => format!(
-                "Crate was yanked: <code>{krate}#{version}</code> \
-                    <a href='{docs}'>[docs.rs]</a> \
-                    <a href='{crates}'>[crates.io]</a> \
-                    <a href='{lib}'>[lib.rs]</a>",
+                "Crate was yanked: <code>{krate}#{version}</code> {links}",
                 krate = krate.id.name,
                 version = krate.id.vers,
-                docs = krate.docsrs(),
-                crates = krate.cratesio(),
-                lib = krate.librs(),
+                links = krate.html_links(),
         ),
         ActionKind::Unyanked => format!(
-                "Crate was unyanked: <code>{krate}#{version}</code> \
-                    <a href='{docs}'>[docs.rs]</a> \
-                    <a href='{crates}'>[crates.io]</a> \
-                    <a href='{lib}'>[lib.rs]</a>",
+                "Crate was unyanked: <code>{krate}#{version}</code> {links}",
                 krate = krate.id.name,
                 version = krate.id.vers,
-                docs = krate.docsrs(),
-                crates = krate.cratesio(),
-                lib = krate.librs(),
+                links = krate.html_links(),
         ),
     };
 
