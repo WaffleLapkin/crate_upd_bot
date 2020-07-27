@@ -3,7 +3,7 @@ use tokio::io::{BufReader, AsyncBufReadExt};
 use tokio::stream::StreamExt;
 use tokio::io;
 use crate::util::crate_path;
-use std::path::{PathBuf, Path};
+use std::path::Path;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Crate {

@@ -111,7 +111,7 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                             tryn(5, retry_delay.0, || bot.execute(
                                 SendMessage::new(
                                     chat_id,
-                                    format!("You've successfully unsubscribed for updates on <pre>{}</pre> crate. Use /subscribe to subscribe back.", krate))
+                                    format!("You've successfully unsubscribed for updates on <code>{}</code> crate. Use /subscribe to subscribe back.", krate))
                                     .parse_mode(ParseMode::Html)
                             )).await?;
                         }
