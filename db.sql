@@ -36,20 +36,13 @@ create or replace procedure subscribe(_user_id bigint, _crate varchar(64))
 AS $$
 begin
     if not exists (select * from crates where crates.name = _crate) then
-        begin
-            insert into crates (name) values (_crate);
-        exception
-            when unique_violation then
-        end;
+        insert into crates (name) values (_crate) on conflict do nothing;
     end if;
 
-    begin
-        insert into subscriptions (user_id, crate_id)
-            select _user_id, id from crates
-                where crates.name = _crate;
-    exception
-        when unique_violation then
-    end;
+    insert into subscriptions (user_id, crate_id)
+        select _user_id, id from crates
+            where crates.name = _crate
+        on conflict do nothing;
 end
 $$;
 
