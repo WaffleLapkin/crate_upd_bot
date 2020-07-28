@@ -1,9 +1,9 @@
-use tokio::fs::File;
-use tokio::io::{BufReader, AsyncBufReadExt};
-use tokio::stream::StreamExt;
-use tokio::io;
 use crate::util::crate_path;
 use std::path::Path;
+use tokio::fs::File;
+use tokio::io;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::stream::StreamExt;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Crate {
@@ -60,7 +60,9 @@ impl Crate {
         let file = File::open(Path::new("./index").join(crate_path(name))).await?;
         let mut lines = BufReader::new(file).lines();
         let mut last = None;
-        while let next @ Some(_) = lines.next().await.transpose()? { last = next }
+        while let next @ Some(_) = lines.next().await.transpose()? {
+            last = next
+        }
         serde_json::from_str(&last.unwrap())
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
     }

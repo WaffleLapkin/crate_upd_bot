@@ -1,10 +1,5 @@
-use std::{
-    fs::File,
-    error::Error,
-    time::Duration,
-    io::Read
-};
 use fntools::value::ValueExt;
+use std::{error::Error, fs::File, io::Read, time::Duration};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Config {
@@ -55,18 +50,17 @@ pub struct DbConfig {
 
 impl DbConfig {
     pub fn cfg(&self) -> tokio_postgres::Config {
-        tokio_postgres::Config::new()
-            .also(|cfg| {
-                cfg.host(&self.host)
-                    .user(&self.user)
-                    .dbname(&self.dbname);
-            })
+        tokio_postgres::Config::new().also(|cfg| {
+            cfg.host(&self.host).user(&self.user).dbname(&self.dbname);
+        })
     }
 }
 
 #[derive(Clone, Copy, Debug, serde::Deserialize)]
 #[serde(transparent)]
-pub struct BroadcastDelay { pub millis: u64 }
+pub struct BroadcastDelay {
+    pub millis: u64,
+}
 
 impl Default for BroadcastDelay {
     fn default() -> Self {
@@ -82,7 +76,9 @@ impl From<BroadcastDelay> for Duration {
 
 #[derive(Clone, Copy, Debug, serde::Deserialize)]
 #[serde(transparent)]
-pub struct UpdateDelay { pub millis: u64 }
+pub struct UpdateDelay {
+    pub millis: u64,
+}
 
 impl Default for UpdateDelay {
     fn default() -> Self {
@@ -125,4 +121,3 @@ mod defaults {
         String::from("./index")
     }
 }
-

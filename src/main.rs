@@ -2,19 +2,19 @@
 //       maybe concat many messages into one (in channel) + queues to properly handle limits
 
 use crate::{bot::setup, db::Database, krate::Crate, util::tryn};
+use arraylib::Slice;
 use carapax::{methods::SendMessage, types::ParseMode, Api};
 use fntools::{self, value::ValueExt};
 use git2::{Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
 use tokio_postgres::NoTls;
-use arraylib::Slice;
 
 mod bot;
+mod cfg;
 mod db;
 mod krate;
 mod util;
-mod cfg;
 
 #[tokio::main]
 async fn main() {
@@ -78,7 +78,12 @@ fn fast_forward(repo: &Repository, commit: &git2::Commit) -> Result<(), git2::Er
     }
 }
 
-async fn pull(repo: &Repository, bot: &Api, db: &Database, cfg: &cfg::Config) -> Result<(), git2::Error> {
+async fn pull(
+    repo: &Repository,
+    bot: &Api,
+    db: &Database,
+    cfg: &cfg::Config,
+) -> Result<(), git2::Error> {
     // fetch changes from remote index
     repo.find_remote("origin")
         .expect("couldn't find 'origin' remote")
@@ -90,9 +95,10 @@ async fn pull(repo: &Repository, bot: &Api, db: &Database, cfg: &cfg::Config) ->
     walk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
     let commits: Result<Vec<_>, _> = walk.map(|oid| repo.find_commit(oid?)).collect();
     let mut opts = DiffOptions::default();
-    let opts =  opts.context_lines(0).minimal(true);
+    let opts = opts.context_lines(0).minimal(true);
     for [prev, next] in commits?.array_windows::<[_; 2]>() {
-        let diff: Diff = repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
+        let diff: Diff =
+            repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
         let (krate, action) = diff_one(diff)?;
         notify(krate, action, bot, db, cfg).await;
         fast_forward(repo, next)?;
@@ -124,7 +130,10 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
                     assert!(delta.nfiles() == 2 || delta.nfiles() == 1);
                     match line.origin() {
                         '-' => {
-                            assert!(prev.is_none(), "Expected number of deletions <= 1 per commit");
+                            assert!(
+                                prev.is_none(),
+                                "Expected number of deletions <= 1 per commit"
+                            );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
                                 .expect("cound't deserialize crate");
@@ -132,7 +141,10 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
                             prev = Some(krate);
                         }
                         '+' => {
-                            assert!(next.is_none(), "Expected number of additions = 1 per commit");
+                            assert!(
+                                next.is_none(),
+                                "Expected number of additions = 1 per commit"
+                            );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
                                 .expect("cound't deserialize crate");
@@ -180,41 +192,48 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
 async fn notify(krate: Crate, action: ActionKind, bot: &Api, db: &Database, cfg: &cfg::Config) {
     let message = match action {
         ActionKind::NewVersion => format!(
-                "Crate was updated: <code>{krate}#{version}</code> {links}",
-                krate = krate.id.name,
-                version = krate.id.vers,
-                links = krate.html_links(),
+            "Crate was updated: <code>{krate}#{version}</code> {links}",
+            krate = krate.id.name,
+            version = krate.id.vers,
+            links = krate.html_links(),
         ),
         ActionKind::Yanked => format!(
-                "Crate was yanked: <code>{krate}#{version}</code> {links}",
-                krate = krate.id.name,
-                version = krate.id.vers,
-                links = krate.html_links(),
+            "Crate was yanked: <code>{krate}#{version}</code> {links}",
+            krate = krate.id.name,
+            version = krate.id.vers,
+            links = krate.html_links(),
         ),
         ActionKind::Unyanked => format!(
-                "Crate was unyanked: <code>{krate}#{version}</code> {links}",
-                krate = krate.id.name,
-                version = krate.id.vers,
-                links = krate.html_links(),
+            "Crate was unyanked: <code>{krate}#{version}</code> {links}",
+            krate = krate.id.name,
+            version = krate.id.vers,
+            links = krate.html_links(),
         ),
     };
 
-        let users = db
-            .list_subscribers(&krate.id.name)
-            .await
-            .map_err(|err| log::error!("db error while getting subscribers: {}", err))
-            .unwrap_or_default();
+    let users = db
+        .list_subscribers(&krate.id.name)
+        .await
+        .map_err(|err| log::error!("db error while getting subscribers: {}", err))
+        .unwrap_or_default();
 
-        if let Some(ch) = cfg.channel {
-            notify_inner(bot, ch, &message, cfg, &krate, true).await;
-        }
+    if let Some(ch) = cfg.channel {
+        notify_inner(bot, ch, &message, cfg, &krate, true).await;
+    }
 
-        for chat_id in users {
-            notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
-        }
+    for chat_id in users {
+        notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
+    }
 }
 
-async fn notify_inner(bot: &Api, chat_id: i64, msg: &str, cfg: &cfg::Config, krate: &Crate, quiet: bool) {
+async fn notify_inner(
+    bot: &Api,
+    chat_id: i64,
+    msg: &str,
+    cfg: &cfg::Config,
+    krate: &Crate,
+    quiet: bool,
+) {
     tryn(5, cfg.retry_delay.0, || {
         bot.execute(
             SendMessage::new(chat_id, msg)
@@ -223,15 +242,15 @@ async fn notify_inner(bot: &Api, chat_id: i64, msg: &str, cfg: &cfg::Config, kra
                 .disable_notification(quiet),
         )
     })
-        .await
-        .map(drop)
-        .unwrap_or_else(|err| {
-            log::error!(
-                    "error while trying to send notification about {:?} to {}: {}",
-                    krate,
-                    chat_id,
-                    err
-                )
-        });
+    .await
+    .map(drop)
+    .unwrap_or_else(|err| {
+        log::error!(
+            "error while trying to send notification about {:?} to {}: {}",
+            krate,
+            chat_id,
+            err
+        )
+    });
     tokio::time::delay_for(cfg.broadcast_delay_millis.into()).await;
 }

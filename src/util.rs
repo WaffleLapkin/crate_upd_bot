@@ -1,6 +1,6 @@
 use std::{
     future::Future,
-    path::{Path, PathBuf}
+    path::{Path, PathBuf},
 };
 use tokio::time::{delay_for, Duration};
 
