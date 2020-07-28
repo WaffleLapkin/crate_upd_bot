@@ -205,26 +205,33 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Api, db: &Database, cfg:
             .map_err(|err| log::error!("db error while getting subscribers: {}", err))
             .unwrap_or_default();
 
-        let chat_ids = users.into_iter().chain(cfg.channel.into_iter());
+        if let Some(ch) = cfg.channel {
+            notify_inner(bot, ch, &message, cfg, &krate, true).await;
+        }
 
-        for chat_id in chat_ids {
-            tryn(5, cfg.retry_delay.0, || {
-                bot.execute(
-                    SendMessage::new(chat_id, &message)
-                        .parse_mode(ParseMode::Html)
-                        .disable_web_page_preview(true),
-                )
-            })
-            .await
-            .map(drop)
-            .unwrap_or_else(|err| {
-                log::error!(
+        for chat_id in users {
+            notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
+        }
+}
+
+async fn notify_inner(bot: &Api, chat_id: i64, msg: &str, cfg: &cfg::Config, krate: &Crate, quiet: bool) {
+    tryn(5, cfg.retry_delay.0, || {
+        bot.execute(
+            SendMessage::new(chat_id, msg)
+                .parse_mode(ParseMode::Html)
+                .disable_web_page_preview(true)
+                .disable_notification(quiet),
+        )
+    })
+        .await
+        .map(drop)
+        .unwrap_or_else(|err| {
+            log::error!(
                     "error while trying to send notification about {:?} to {}: {}",
                     krate,
                     chat_id,
                     err
                 )
-            });
-            tokio::time::delay_for(cfg.broadcast_delay_millis.into()).await;
-        }
+        });
+    tokio::time::delay_for(cfg.broadcast_delay_millis.into()).await;
 }
