@@ -25,7 +25,7 @@ The bot supports 3 straightforward commands:
 
 ## How it works
 
-Every `pull_delay` (default to 5 min) the bot fetches changes from [`crates.io-index`][index-repo] repo, walk through 
+Every `pull_delay` (default to 5 min) the bot fetches changes from [`crates.io-index`][index-repo] repo, walks through 
 all commits, parses diffs & notifies users.
 
 [index-repo]: https://github.com/rust-lang/crates.io-index.git
@@ -45,7 +45,7 @@ All contributions are appreciated.
    ```console
    cargo build --release
    ```
-1. Edit [`config.toml`](./config.toml). You must set `bot_token` and `db.{host,user,dbname}` though you may set other setting too.
+1. Edit [`config.toml`](./config.toml). You must set `bot_token` and `db.{host,user,dbname}` though you may set other settings too.
 1. Run the binary created in (3). (`target/release/crate_upd_bot`)
 
 (probably it would be better to create a docker image & setup auto deploy, maybe some day....)  
