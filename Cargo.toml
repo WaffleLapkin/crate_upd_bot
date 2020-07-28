@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 git2 = "0.13"
-fntools = { git = "https://github.com/WaffleLapkin/fntools.git", rev = "8d59c82" }
+fntools = { git = "https://github.com/WaffleLapkin/fntools.git", rev = "8d59c82", features = ["stable"] }
 log = { version = "0.4.8", features = ["serde"] }
 simple_logger = "1.6.0"
 serde = { version = "1.0.114", features = ["derive"] }

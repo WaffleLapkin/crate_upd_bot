@@ -1,8 +1,6 @@
 ## crate_upd_bot
 
-<!--
 [![CI status](https://github.com/WaffleLapkin/crate_upd_bot/workflows/Continuous%20integration/badge.svg)](https://github.com/WaffleLapkin/crate_upd_bot/actions)
--->
 [![Telegram (bot)](https://img.shields.io/badge/bot-@crates_upd_bot-9cf?logo=telegram)](https://t.me/crates_upd_bot)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
