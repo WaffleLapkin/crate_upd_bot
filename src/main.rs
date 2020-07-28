@@ -40,9 +40,10 @@ async fn main() {
     };
 
     let index_url = &config.index_url; // Closures still borrow full struct :|
-    let repo = Repository::open("./index").unwrap_or_else(move |_| {
+    let index_path = &config.index_path;
+    let repo = Repository::open(index_path).unwrap_or_else(move |_| {
         info!("start cloning");
-        Repository::clone(&index_url, "./index")
+        Repository::clone(&index_url, index_path)
             .unwrap()
             .also(|_| info!("cloning finished"))
     });

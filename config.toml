@@ -10,6 +10,9 @@
 # # Url of crates.io index (git repo)
 # index_url = "https://github.com/rust-lang/crates.io-index.git"
 
+# # The path to the local crates.io index git repository
+# index_path = "./index"
+
 # # Delay after which bot will retry telegram-request
 # retry_delay = { secs = 10, nanos = 0 }
 

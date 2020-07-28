@@ -20,6 +20,9 @@ pub struct Config {
     /// Url of crates.io index (git repo)
     #[serde(default = "defaults::index_url")]
     pub index_url: String,
+    /// The path to the local crates.io index git repository
+    #[serde(default = "defaults::index_path")]
+    pub index_path: String,
     /// Delay after which bot will retry telegram-request
     #[serde(default)]
     pub retry_delay: RetryDelay,
@@ -116,6 +119,10 @@ mod defaults {
 
     pub(super) fn index_url() -> String {
         String::from("https://github.com/rust-lang/crates.io-index.git")
+    }
+
+    pub(super) fn index_path() -> String {
+        String::from("./index")
     }
 }
 
