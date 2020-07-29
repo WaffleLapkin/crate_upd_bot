@@ -51,7 +51,7 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                 "/start" => {
                     tryn(5, Duration::from_millis(10000 /* 10 secs */), || {
                         bot.execute(
-                            SendMessage::new(chat_id, "Hi! I will notify you about updates of crates. Use /subscribe to subscribe for updates of crates you want to be notified about.\n\nIn case you want to see <b>all</b> updates go to @crates_updates\n\nAuthor: @wafflelapkin\nHis channel [ru]: @ihatereality\nMy source: t/b published")
+                            SendMessage::new(chat_id, "Hi! I will notify you about updates of crates. Use /subscribe to subscribe for updates of crates you want to be notified about.\n\nIn case you want to see <b>all</b> updates go to @crates_updates\n\nAuthor: @wafflelapkin\nHis channel [ru]: @ihatereality\nMy source: <a href='https://github.com/WaffleLapkin/crate_upd_bot'>[github]</a>")
                                 .parse_mode(ParseMode::Html),
                         )
                     })
