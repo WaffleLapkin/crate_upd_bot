@@ -16,6 +16,8 @@ mod db;
 mod krate;
 mod util;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[tokio::main]
 async fn main() {
     let config = cfg::Config::read().expect("couldn't read config");
