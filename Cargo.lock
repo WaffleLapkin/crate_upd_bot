@@ -206,7 +206,7 @@ checksum = "6d375c433320f6c5057ae04a04376eef4d04ce2801448cf8863a78da99107be4"
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arraylib",
  "async-trait",
