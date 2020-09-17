@@ -102,7 +102,9 @@ async fn pull(
                 "Skip commit#{} from non-bors user@{}: {}",
                 next.id(),
                 next.author().name().unwrap_or("<invalid utf-8>"),
-                next.message().unwrap_or("<invalid utf-8>").trim_end_matches('\n'),
+                next.message()
+                    .unwrap_or("<invalid utf-8>")
+                    .trim_end_matches('\n'),
             );
 
             continue;
