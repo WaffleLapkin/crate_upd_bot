@@ -96,7 +96,7 @@ async fn pull(
     let commits: Result<Vec<_>, _> = walk.map(|oid| repo.find_commit(oid?)).collect();
     let mut opts = DiffOptions::default();
     let opts = opts.context_lines(0).minimal(true);
-    for [prev, next] in commits?.array_windows::<[_; 2]>() {
+    for [prev, next] in Slice::array_windows::<[_; 2]>(&commits?[..]) {
         if next.author().name() != Some("bors") {
             log::warn!(
                 "Skip commit#{} from non-bors user@{}: {}",
