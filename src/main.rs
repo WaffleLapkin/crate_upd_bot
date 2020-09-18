@@ -1,7 +1,7 @@
 // TODO: somehow better handle rate-limits (https://core.telegram.org/bots/faq#broadcasting-to-users)
 //       maybe concat many messages into one (in channel) + queues to properly handle limits
+use std::sync::Arc;
 
-use crate::{bot::setup, db::Database, krate::Crate, util::tryn};
 use arraylib::Slice;
 use carapax::{methods::SendMessage, types::ParseMode, Api};
 use fntools::{self, value::ValueExt};
@@ -9,6 +9,8 @@ use git2::{Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
 use tokio_postgres::NoTls;
+
+use crate::{bot::setup, db::Database, krate::Crate, util::tryn};
 
 mod bot;
 mod cfg;
@@ -20,7 +22,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
-    let config = cfg::Config::read().expect("couldn't read config");
+    let config = Arc::new(cfg::Config::read().expect("couldn't read config"));
 
     simple_logger::init_with_level(config.loglevel).unwrap();
     info!("starting");
@@ -52,7 +54,7 @@ async fn main() {
 
     let bot = Api::new(carapax::Config::new(&config.bot_token)).expect("Can't crate Api");
 
-    let lp = setup(bot.clone(), db.clone(), config.retry_delay);
+    let lp = setup(bot.clone(), db.clone(), Arc::clone(&config));
     tokio::spawn(lp.run());
 
     loop {

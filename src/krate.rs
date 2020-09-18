@@ -1,3 +1,4 @@
+use crate::cfg::Config;
 use crate::util::crate_path;
 use std::path::Path;
 use tokio::fs::File;
@@ -56,8 +57,8 @@ impl Crate {
         )
     }
 
-    pub async fn read_last(name: &str) -> io::Result<Self> {
-        let file = File::open(Path::new("./index").join(crate_path(name))).await?;
+    pub async fn read_last(name: &str, cfg: &Config) -> io::Result<Self> {
+        let file = File::open(Path::new(cfg.index_path.as_str()).join(crate_path(name))).await?;
         let mut lines = BufReader::new(file).lines();
         let mut last = None;
         while let next @ Some(_) = lines.next().await.transpose()? {
