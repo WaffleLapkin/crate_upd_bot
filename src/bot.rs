@@ -1,10 +1,5 @@
-use crate::cfg::RetryDelay;
-use crate::krate::Crate;
-use crate::{
-    db::Database,
-    util::{crate_path, tryn},
-    VERSION,
-};
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc, time::Duration};
+
 use carapax::{
     longpoll::LongPoll,
     methods::SendMessage,
@@ -12,14 +7,21 @@ use carapax::{
     Api, Dispatcher, ExecuteError, Handler,
 };
 use fntools::value::ValueExt;
-use std::{future::Future, path::PathBuf, pin::Pin, time::Duration};
+
+use crate::{
+    cfg::Config,
+    db::Database,
+    krate::Crate,
+    util::{crate_path, tryn},
+    VERSION,
+};
 
 pub fn setup(
     bot: Api,
     db: Database,
-    retry_delay: RetryDelay,
-) -> LongPoll<Dispatcher<(Api, Database, RetryDelay)>> {
-    let mut dp = Dispatcher::new((bot.clone(), db, retry_delay));
+    cfg: Arc<Config>,
+) -> LongPoll<Dispatcher<(Api, Database, Arc<Config>)>> {
+    let mut dp = Dispatcher::new((bot.clone(), db, cfg));
     dp.add_handler(Handlers);
     LongPoll::new(bot, dp) // TODO: allowed_update
 }
@@ -33,20 +35,21 @@ enum HErr {
     GetUser,
 }
 
-impl Handler<(Api, Database, RetryDelay)> for Handlers {
+impl Handler<(Api, Database, Arc<Config>)> for Handlers {
     type Input = Command;
     type Output = Result<(), HErr>;
 
     fn handle<'s: 'async_trait, 'a: 'async_trait, 'async_trait>(
         &'s mut self,
-        context: &'a (Api, Database, RetryDelay),
+        context: &'a (Api, Database, Arc<Config>),
         input: Self::Input,
     ) -> Pin<Box<dyn Future<Output = Self::Output> + Send + 'async_trait>> {
         async fn handle_(
             _: &mut Handlers,
-            (bot, db, retry_delay): &(Api, Database, RetryDelay),
+            (bot, db, cfg): &(Api, Database, Arc<Config>),
             command: Command,
         ) -> Result<(), HErr> {
+            let retry_delay = &cfg.retry_delay;
             let chat_id = command.get_message().get_user().ok_or(HErr::GetUser)?.id;
             match command.get_name() {
                 "/start" => {
@@ -60,12 +63,12 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                 }
                 "/subscribe" => match command.get_args() {
                     [krate, ..] => {
-                        if PathBuf::from("./index")
+                        if PathBuf::from(cfg.index_path.as_str())
                             .also(|p| p.push(crate_path(krate)))
                             .exists()
                         {
                             db.subscribe(chat_id, krate).await?;
-                            let v = match Crate::read_last(krate).await {
+                            let v = match Crate::read_last(krate, cfg).await {
                                 Ok(krate) => format!(
                                     " (current version <code>{}</code> {})",
                                     krate.id.vers,
@@ -123,7 +126,7 @@ impl Handler<(Api, Database, RetryDelay)> for Handlers {
                 "/list" => {
                     let mut subscriptions = db.list_subscriptions(chat_id).await?;
                     for sub in &mut subscriptions {
-                        match Crate::read_last(sub).await {
+                        match Crate::read_last(sub, cfg).await {
                             Ok(krate) => {
                                 sub.push('#');
                                 sub.push_str(&krate.id.vers);
