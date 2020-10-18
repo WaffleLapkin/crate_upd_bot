@@ -1,5 +1,5 @@
 use fntools::value::ValueExt;
-use std::{error::Error, fs::File, io::Read, time::Duration};
+use std::{collections::HashSet, error::Error, fs::File, io::Read, time::Duration};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Config {
@@ -31,6 +31,9 @@ pub struct Config {
     pub bot_token: String,
     /// Database configuration
     pub db: DbConfig,
+    /// Ban configuration
+    #[serde(default)]
+    pub ban: BanConfig,
 }
 
 impl Config {
@@ -54,6 +57,13 @@ impl DbConfig {
             cfg.host(&self.host).user(&self.user).dbname(&self.dbname);
         })
     }
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct BanConfig {
+    /// Names of banned crates (they won't show up in the channel)
+    #[serde(default)]
+    pub crates: HashSet<String>,
 }
 
 #[derive(Clone, Copy, Debug, serde::Deserialize)]

@@ -30,3 +30,7 @@ bot_token = "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 host = "host"
 user = "user"
 dbname = "dbname"
+
+# [ban]
+# # List of names of banned crates (they won't show up in the channel)
+# crates = []

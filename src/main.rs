@@ -235,8 +235,11 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Api, db: &Database, cfg:
         .unwrap_or_default();
 
     if let Some(ch) = cfg.channel {
-        notify_inner(bot, ch, &message, cfg, &krate, true).await;
+        if !cfg.ban.crates.contains(krate.id.name.as_str()) {
+            notify_inner(bot, ch, &message, cfg, &krate, true).await;
+        }
     }
+
 
     for chat_id in users {
         notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
