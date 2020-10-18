@@ -7,13 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-git2 = "0.13"
+git2 = "0.13.12"
 fntools = { git = "https://github.com/WaffleLapkin/fntools.git", rev = "8d59c82", features = ["stable"] }
 log = { version = "0.4.8", features = ["serde"] }
-simple_logger = "1.6.0"
+simple_logger = "1.11.0"
 serde = { version = "1.0.114", features = ["derive"] }
 serde_json = "1.0.56"
-tokio = { version = "0.2.21", features = ["full"] }
+tokio = { version = "0.2.21", features = ["macros"] }
 carapax = "0.8.0"
 futures = "0.3.5"
 tokio-postgres = "0.5.5"
