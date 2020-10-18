@@ -1,5 +1,5 @@
 use fntools::value::ValueExt;
-use std::{error::Error, fs::File, io::Read, time::Duration};
+use std::{collections::HashSet, error::Error, fs::File, io::Read, time::Duration};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Config {
@@ -11,7 +11,7 @@ pub struct Config {
     pub pull_delay: Duration,
     /// Logging level
     #[serde(default = "defaults::loglevel")]
-    pub loglevel: log::Level,
+    pub loglevel: log::LevelFilter,
     /// Url of crates.io index (git repo)
     #[serde(default = "defaults::index_url")]
     pub index_url: String,
@@ -31,6 +31,9 @@ pub struct Config {
     pub bot_token: String,
     /// Database configuration
     pub db: DbConfig,
+    /// Ban configuration
+    #[serde(default)]
+    pub ban: BanConfig,
 }
 
 impl Config {
@@ -54,6 +57,13 @@ impl DbConfig {
             cfg.host(&self.host).user(&self.user).dbname(&self.dbname);
         })
     }
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct BanConfig {
+    /// Names of banned crates (they won't show up in the channel)
+    #[serde(default)]
+    pub crates: HashSet<String>,
 }
 
 #[derive(Clone, Copy, Debug, serde::Deserialize)]
@@ -109,8 +119,8 @@ mod defaults {
         Duration::from_secs(60 * 5) // 5 min
     }
 
-    pub(super) const fn loglevel() -> log::Level {
-        log::Level::Info
+    pub(super) const fn loglevel() -> log::LevelFilter {
+        log::LevelFilter::Info
     }
 
     pub(super) fn index_url() -> String {
