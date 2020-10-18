@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.3
+
 ### Added
 
 - List of banned crates to prevent spamming by releasing new versions
