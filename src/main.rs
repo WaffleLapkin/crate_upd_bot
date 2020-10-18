@@ -24,7 +24,11 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 async fn main() {
     let config = Arc::new(cfg::Config::read().expect("couldn't read config"));
 
-    simple_logger::init_with_level(config.loglevel).unwrap();
+    simple_logger::SimpleLogger::new()
+        .with_level(config.loglevel)
+        .init()
+        .expect("Failed to initialize logger");
+
     info!("starting");
 
     let db = {
@@ -239,7 +243,6 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Api, db: &Database, cfg:
             notify_inner(bot, ch, &message, cfg, &krate, true).await;
         }
     }
-
 
     for chat_id in users {
         notify_inner(bot, chat_id, &message, cfg, &krate, false).await;

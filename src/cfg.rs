@@ -11,7 +11,7 @@ pub struct Config {
     pub pull_delay: Duration,
     /// Logging level
     #[serde(default = "defaults::loglevel")]
-    pub loglevel: log::Level,
+    pub loglevel: log::LevelFilter,
     /// Url of crates.io index (git repo)
     #[serde(default = "defaults::index_url")]
     pub index_url: String,
@@ -119,8 +119,8 @@ mod defaults {
         Duration::from_secs(60 * 5) // 5 min
     }
 
-    pub(super) const fn loglevel() -> log::Level {
-        log::Level::Info
+    pub(super) const fn loglevel() -> log::LevelFilter {
+        log::LevelFilter::Info
     }
 
     pub(super) fn index_url() -> String {
