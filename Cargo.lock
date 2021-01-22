@@ -193,7 +193,7 @@ checksum = "8aebca1129a03dc6dc2b127edd729435bbc4a37e1d5f4d7513165089ceb02634"
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "arraylib",
  "async-trait",
@@ -202,6 +202,7 @@ dependencies = [
  "fntools",
  "futures",
  "git2",
+ "libgit2-sys",
  "log",
  "serde",
  "serde_json",
@@ -636,9 +637,9 @@ checksum = "2448f6066e80e3bfc792e9c98bf705b4b0fc6e8ef5b43e5889aff0eaa9c58743"
 
 [[package]]
 name = "libgit2-sys"
-version = "0.12.14+1.1.0"
+version = "0.12.17+1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f25af58e6495f7caf2919d08f212de550cfa3ed2f5e744988938ea292b9f549"
+checksum = "f4ebdf65ca745126df8824688637aa0535a88900b83362d8ca63893bcf4e8841"
 dependencies = [
  "cc",
  "libc",
