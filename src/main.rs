@@ -22,6 +22,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
+    unsafe {
+        dbg!(libgit2_sys::git_libgit2_opts(
+            libgit2_sys::GIT_OPT_SET_MWINDOW_FILE_LIMIT as _,
+            128
+        ))
+    };
+
     let config = Arc::new(cfg::Config::read().expect("couldn't read config"));
 
     simple_logger::SimpleLogger::new()
