@@ -3,7 +3,11 @@
 use std::sync::Arc;
 
 use arraylib::Slice;
-use carapax::{methods::SendMessage, types::ParseMode, Api};
+use carapax::{
+    methods::{GetUpdates, SendMessage},
+    types::ParseMode,
+    Api,
+};
 use fntools::{self, value::ValueExt};
 use git2::{Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
@@ -65,6 +69,10 @@ async fn main() {
 
     let bot = Api::new(carapax::Config::new(&config.bot_token)).expect("Can't crate Api");
 
+    // HACK(waffle): drop all pending updates to unfreeze bot by restarting it,
+    //               if it got an unparsable update from bot api 5.1
+    bot.execute(GetUpdates::default().offset(-1)).await.unwrap();
+
     let lp = setup(bot.clone(), db.clone(), Arc::clone(&config));
     tokio::spawn(lp.run());
 
@@ -73,7 +81,7 @@ async fn main() {
         pull(&repo, &bot, &db, &config).await.expect("pull failed");
         log::info!("pulling updates finished");
 
-        tokio::time::delay_for(config.pull_delay).await; // delay for 5 min
+        tokio::time::sleep(config.pull_delay).await; // delay for 5 min
     }
 }
 
@@ -131,7 +139,7 @@ async fn pull(
         notify(krate, action, bot, db, cfg).await;
         fast_forward(repo, next)?;
         // Try to prevent "too many requests" error from telegram
-        tokio::time::delay_for(cfg.update_delay_millis.into()).await;
+        tokio::time::sleep(cfg.update_delay_millis.into()).await;
     }
 
     Ok(())
@@ -282,5 +290,5 @@ async fn notify_inner(
             err
         )
     });
-    tokio::time::delay_for(cfg.broadcast_delay_millis.into()).await;
+    tokio::time::sleep(cfg.broadcast_delay_millis.into()).await;
 }

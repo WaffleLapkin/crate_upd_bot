@@ -2,7 +2,7 @@ use std::{
     future::Future,
     path::{Path, PathBuf},
 };
-use tokio::time::{delay_for, Duration};
+use tokio::time::{sleep, Duration};
 
 /// Path to crate file in crates.io-index. Implementation is stolen from
 /// https://github.com/rust-lang/crates.io/blob/06bfd00ca4c2fce1e9c674d0d792a5ca56d32350/src/git.rs#L179-L187
@@ -32,7 +32,7 @@ where
 {
     let mut err = tryok!(f().await);
     for _ in 0..n {
-        delay_for(del).await;
+        sleep(del).await;
         err = tryok!(f().await);
     }
     Err(err)

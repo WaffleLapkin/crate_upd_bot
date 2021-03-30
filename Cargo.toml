@@ -13,10 +13,10 @@ log = { version = "0.4.8", features = ["serde"] }
 simple_logger = "1.11.0"
 serde = { version = "1.0.114", features = ["derive"] }
 serde_json = "1.0.56"
-tokio = { version = "0.2.21", features = ["macros"] }
-carapax = "0.8.0"
+tokio = { version = "1.4", features = ["macros", "fs", "rt-multi-thread"] }
+carapax = "0.10.0"
 futures = "0.3.5"
-tokio-postgres = "0.5.5"
+tokio-postgres = "0.7.0"
 derive_more = "0.99.9"
 async-trait = "0.1"
 toml = "0.5"
