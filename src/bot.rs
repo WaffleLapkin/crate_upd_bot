@@ -2,7 +2,9 @@ use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc, time::Duration};
 
 use carapax::{
     longpoll::LongPoll,
+    methods::GetChatAdministrators,
     methods::SendMessage,
+    types::MessageKind,
     types::{Command, ParseMode},
     Api, Dispatcher, ExecuteError, Handler,
 };
@@ -33,6 +35,7 @@ enum HErr {
     Tg(ExecuteError),
     Bd(tokio_postgres::Error),
     GetUser,
+    NotAdmin,
 }
 
 impl Handler<(Api, Database, Arc<Config>)> for Handlers {
@@ -50,7 +53,27 @@ impl Handler<(Api, Database, Arc<Config>)> for Handlers {
             command: Command,
         ) -> Result<(), HErr> {
             let retry_delay = &cfg.retry_delay;
-            let chat_id = command.get_message().get_user().ok_or(HErr::GetUser)?.id;
+            let msg = command.get_message();
+            let chat_id = match &msg.kind {
+                MessageKind::Private { from, .. } => from.id,
+                _ => {
+                    let admins = tryn(5, Duration::from_millis(10000 /* 10 secs */), || {
+                        bot.execute(GetChatAdministrators::new(msg.get_chat_id()))
+                    })
+                    .await?;
+
+                    let user_id = msg.get_user().ok_or(HErr::GetUser)?.id;
+                    if admins
+                        .iter()
+                        .map(|admin| admin.get_user().id)
+                        .any(|id| id == user_id)
+                    {
+                        msg.get_chat_id()
+                    } else {
+                        return Err(HErr::NotAdmin);
+                    }
+                }
+            };
             match command.get_name() {
                 "/start" => {
                     tryn(5, Duration::from_millis(10000 /* 10 secs */), || {
