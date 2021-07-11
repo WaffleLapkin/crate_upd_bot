@@ -1,6 +1,4 @@
-use tokio_postgres::tls::MakeTlsConnect;
-use tokio_postgres::types::Type;
-use tokio_postgres::{Client, Config, Connection, Error, Socket};
+use tokio_postgres::{tls::MakeTlsConnect, types::Type, Client, Config, Connection, Error, Socket};
 
 use std::sync::Arc;
 

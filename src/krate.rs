@@ -1,9 +1,10 @@
-use crate::cfg::Config;
-use crate::util::crate_path;
+use crate::{cfg::Config, util::crate_path};
 use std::path::Path;
-use tokio::fs::File;
-use tokio::io;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::{
+    fs::File,
+    io,
+    io::{AsyncBufReadExt, BufReader},
+};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Crate {
@@ -47,9 +48,8 @@ impl Crate {
 
     pub fn html_links(&self) -> String {
         format!(
-            "<a href='{docs}'>[docs.rs]</a> \
-             <a href='{crates}'>[crates.io]</a> \
-             <a href='{lib}'>[lib.rs]</a>",
+            "<a href='{docs}'>[docs.rs]</a> <a href='{crates}'>[crates.io]</a> <a \
+             href='{lib}'>[lib.rs]</a>",
             docs = self.docsrs(),
             crates = self.cratesio(),
             lib = self.librs(),

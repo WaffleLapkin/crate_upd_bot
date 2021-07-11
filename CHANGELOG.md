@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.5
+
+### Changed
+
+- Internal rewrite (move to `teloxide`)
+
 ## 0.1.3
 
 ### Added
