@@ -27,29 +27,29 @@ impl Database {
             .map(|(client, connection)| (Self::new(client), connection))
     }
 
-    pub async fn subscribe(&self, user_id: i64, krate: &str) -> Result<(), Error> {
+    pub async fn subscribe(&self, chat_id: i64, krate: &str) -> Result<(), Error> {
         let stmt = self
             .inner
             .prepare_typed("CALL subscribe($1, $2)", &[Type::INT8, Type::VARCHAR])
             .await?;
 
-        self.inner.execute(&stmt, &[&user_id, &krate]).await?;
+        self.inner.execute(&stmt, &[&chat_id, &krate]).await?;
 
         Ok(())
     }
 
-    pub async fn unsubscribe(&self, user_id: i64, krate: &str) -> Result<(), Error> {
+    pub async fn unsubscribe(&self, chat_id: i64, krate: &str) -> Result<(), Error> {
         let stmt = self
             .inner
             .prepare_typed("CALL unsubscribe($1, $2)", &[Type::INT8, Type::VARCHAR])
             .await?;
 
-        self.inner.execute(&stmt, &[&user_id, &krate]).await?;
+        self.inner.execute(&stmt, &[&chat_id, &krate]).await?;
 
         Ok(())
     }
 
-    pub async fn list_subscribers(&self, krate: &str) -> Result<Vec<i64>, Error> {
+    pub async fn list_subscribers(&self, krate: &str) -> Result<impl Iterator<Item = i64>, Error> {
         let stmt = self
             .inner
             .prepare_typed("SELECT user_id from list_subscribers($1)", &[Type::VARCHAR])
@@ -60,13 +60,15 @@ impl Database {
             .query(&stmt, &[&krate])
             .await?
             .into_iter()
-            .map(|row| row.get(0))
-            .collect();
+            .map(|row| row.get(0));
 
         Ok(res)
     }
 
-    pub async fn list_subscriptions(&self, user_id: i64) -> Result<Vec<String>, Error> {
+    pub async fn list_subscriptions(
+        &self,
+        chat_id: i64,
+    ) -> Result<impl Iterator<Item = String>, Error> {
         let stmt = self
             .inner
             .prepare_typed(
@@ -77,11 +79,10 @@ impl Database {
 
         let res = self
             .inner
-            .query(&stmt, &[&user_id])
+            .query(&stmt, &[&chat_id])
             .await?
             .into_iter()
-            .map(|row| row.get(0))
-            .collect();
+            .map(|row| row.get(0));
 
         Ok(res)
     }

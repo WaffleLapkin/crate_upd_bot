@@ -3,9 +3,10 @@
 //       handle limits
 
 // When index colapses, use `git reset --hard origin/master`
-use std::{convert::Infallible, sync::Arc, time::Duration};
+use std::{convert::Infallible, iter, sync::Arc, time::Duration};
 
 use arraylib::Slice;
+use either::Either::{Left, Right};
 use fntools::{self, value::ValueExt};
 use futures::future::{self, pending};
 use git2::{Delta, Diff, DiffOptions, Repository, Sort};
@@ -23,7 +24,6 @@ use tokio::sync::{
 use tokio_postgres::NoTls;
 
 use crate::{db::Database, krate::Crate, util::tryn};
-// bot::setup,
 
 mod bot;
 mod cfg;
@@ -134,10 +134,13 @@ async fn main() {
     git2_th.join().unwrap();
 }
 
-// from https://stackoverflow.com/a/58778350
+/// Fast-Forward (FF) to a given commit.
+///
+/// Implementation is taken from <https://stackoverflow.com/a/58778350>.
 fn fast_forward(repo: &Repository, commit: &git2::Commit) -> Result<(), git2::Error> {
     let fetch_commit = repo.find_annotated_commit(commit.id())?;
     let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
     if analysis.0.is_up_to_date() {
         Ok(())
     } else if analysis.0.is_fast_forward() {
@@ -160,16 +163,22 @@ fn pull(
         .fetch(&["master"], None, None)
         .expect("couldn't fetch new version of the index");
 
+    // Collect all commits in the range `HEAD~1..FETCH_HEAD` (i.e. one before
+    // currently checked out to the last fetched)
     let mut walk = repo.revwalk()?;
     walk.push_range("HEAD~1..FETCH_HEAD")?;
     walk.set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)?;
     let commits: Result<Vec<_>, _> = walk.map(|oid| repo.find_commit(oid?)).collect();
+
     let mut opts = DiffOptions::default();
     let opts = opts.context_lines(0).minimal(true);
+
     for [prev, next] in Slice::array_windows::<[_; 2]>(&commits?[..]) {
+        // Commits from humans tend to be formatted differently, compared to
+        // machine-generated ones. This basically makes them unanalyzable.
         if next.author().name() != Some("bors") {
             log::warn!(
-                "Skip commit#{} from non-bors user@{}: {}",
+                "Skip commit#{} from non-bors user @{}: {}",
                 next.id(),
                 next.author().name().unwrap_or("<invalid utf-8>"),
                 next.message()
@@ -180,10 +189,10 @@ fn pull(
             continue;
         }
 
-        let diff: Diff =
-            repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
+        let diff = repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
         let (krate, action) = diff_one(diff)?;
 
+        // Send crates.io update to notifier
         let (tx, mut rx) = oneshot::channel();
         ch.blocking_send((krate, action, tx)).ok().unwrap();
 
@@ -193,6 +202,7 @@ fn pull(
             std::thread::sleep(Duration::from_secs(1));
         }
 
+        // 'Move' to the next commit
         fast_forward(&repo, next)?;
     }
 
@@ -205,6 +215,8 @@ enum ActionKind {
     Unyanked,
 }
 
+/// Get a `crates.io` update from a diff of 2 consecutive commits from a
+/// `crates.io-index` repository.
 fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
     let mut prev = None;
     let mut next = None;
@@ -255,7 +267,7 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
 
     let next = next.expect("Expected number of additions = 1 per commit");
     match (prev.as_ref().map(|c| c.yanked), next.yanked) {
-        /* was yanked, is yanked */
+        /* was yanked?, is yanked? */
         (None, false) => {
             // There were no deleted line & crate is not yanked.
             // New version.
@@ -263,12 +275,12 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
         }
         (Some(false), true) => {
             // The crate was not yanked and now is yanked.
-            // Crate yanked.
+            // Crate was yanked.
             Ok((next, ActionKind::Yanked))
         }
         (Some(true), false) => {
             // The crate was yanked and now is not yanked.
-            // Crate unyanked.
+            // Crate was unyanked.
             Ok((next, ActionKind::Unyanked))
         }
         _unexpected => {
@@ -280,41 +292,34 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
 }
 
 async fn notify(krate: Crate, action: ActionKind, bot: &Bot, db: &Database, cfg: &cfg::Config) {
-    let message = match action {
-        ActionKind::NewVersion => format!(
-            "Crate was updated: <code>{krate}#{version}</code> {links}",
-            krate = krate.id.name,
-            version = krate.id.vers,
-            links = krate.html_links(),
-        ),
-        ActionKind::Yanked => format!(
-            "Crate was yanked: <code>{krate}#{version}</code> {links}",
-            krate = krate.id.name,
-            version = krate.id.vers,
-            links = krate.html_links(),
-        ),
-        ActionKind::Unyanked => format!(
-            "Crate was unyanked: <code>{krate}#{version}</code> {links}",
-            krate = krate.id.name,
-            version = krate.id.vers,
-            links = krate.html_links(),
-        ),
-    };
+    let message = format!(
+        "Crate was {action}: <code>{krate}#{version}</code> {links}",
+        krate = krate.id.name,
+        version = krate.id.vers,
+        links = krate.html_links(),
+        action = match action {
+            ActionKind::NewVersion => "updated",
+            ActionKind::Yanked => "yanked",
+            ActionKind::Unyanked => "unyanked",
+        }
+    );
 
     let users = db
         .list_subscribers(&krate.id.name)
         .await
+        .map(Left)
         .map_err(|err| log::error!("db error while getting subscribers: {}", err))
-        .unwrap_or_default();
+        .unwrap_or(Right(iter::empty()));
 
-    if let Some(ch) = cfg.channel {
+    if let Some(chat_id) = cfg.channel {
         if !cfg.ban.crates.contains(krate.id.name.as_str()) {
-            notify_inner(bot, ch, &message, cfg, &krate, true).await;
+            notify_inner(bot, chat_id, &message, cfg, &krate, true).await;
         }
     }
 
     for chat_id in users {
         notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
+        tokio::time::sleep(cfg.broadcast_delay_millis.into()).await;
     }
 }
 
@@ -341,5 +346,4 @@ async fn notify_inner(
             err
         )
     });
-    tokio::time::sleep(cfg.broadcast_delay_millis.into()).await;
 }
