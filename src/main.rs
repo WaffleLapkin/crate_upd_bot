@@ -3,11 +3,11 @@
 //       handle limits
 
 // When index colapses, use `git reset --hard origin/master`
-use std::sync::Arc;
+use std::{convert::Infallible, sync::Arc, time::Duration};
 
 use arraylib::Slice;
 use fntools::{self, value::ValueExt};
-use futures::future::{abortable, pending};
+use futures::future::{self, pending};
 use git2::{Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
@@ -16,7 +16,10 @@ use teloxide::{
     prelude::*,
     types::ParseMode,
 };
-use tokio::select;
+use tokio::sync::{
+    mpsc::{self, Sender},
+    oneshot,
+};
 use tokio_postgres::NoTls;
 
 use crate::{db::Database, krate::Crate, util::tryn};
@@ -75,29 +78,48 @@ async fn main() {
             .also(|_| info!("cloning finished"))
     });
 
+    let (abortable, abort_handle) = future::abortable(pending::<()>());
+
+    let (tx, mut rx) = mpsc::channel(2);
+    let git2_th = {
+        let pull_delay = config.pull_delay;
+        std::thread::spawn(move || {
+            'outer: loop {
+                log::info!("start pulling updates");
+                pull(&repo, tx.clone()).expect("pull failed");
+                log::info!("pulling updates finished");
+
+                // delay for `config.pull_delay` (default 5 min)
+                {
+                    let mut pd = pull_delay;
+                    const STEP: Duration = Duration::from_secs(5);
+
+                    while pd > Duration::ZERO {
+                        if abortable.is_aborted() {
+                            break 'outer;
+                        }
+
+                        pd = pd.saturating_sub(STEP);
+                        std::thread::sleep(STEP);
+                    }
+                }
+            }
+        })
+    };
+
     let bot = teloxide::Bot::new(&config.bot_token)
         .parse_mode(ParseMode::Html)
         .auto_send();
 
-    let (pull_loop, abort_handle) = {
-        let (abortable, handle) = abortable(pending::<()>());
-        let fut = async {
-            let mut abortable = abortable;
-            loop {
-                log::info!("start pulling updates");
-                pull(&repo, &bot, &db, &config).await.expect("pull failed");
-                log::info!("pulling updates finished");
+    let notify_loop = async {
+        while let Some((krate, action, _unblock)) = rx.recv().await {
+            notify(krate, action, &bot, &db, &config).await;
 
-                // delay for `config.pull_delay` (default 5 min) or break the loop in case of an
-                // abort
-                select! {
-                    () = tokio::time::sleep(config.pull_delay) => {},
-                    _ = &mut abortable => break,
-                }
-            }
-        };
+            // implicitly unblock git2 thread by dropping `_unblock`
+        }
 
-        (fut, handle)
+        // `recv()` returned `None` => `tx` was dropped => `git2_th` was stopped
+        // => `abort_handle.abort()` was probably called
     };
 
     let tg_loop = async {
@@ -107,7 +129,9 @@ async fn main() {
         abort_handle.abort();
     };
 
-    tokio::join!(pull_loop, tg_loop);
+    tokio::join!(notify_loop, tg_loop);
+
+    git2_th.join().unwrap();
 }
 
 // from https://stackoverflow.com/a/58778350
@@ -126,11 +150,9 @@ fn fast_forward(repo: &Repository, commit: &git2::Commit) -> Result<(), git2::Er
     }
 }
 
-async fn pull(
+fn pull(
     repo: &Repository,
-    bot: &Bot,
-    db: &Database,
-    cfg: &cfg::Config,
+    ch: Sender<(Crate, ActionKind, oneshot::Sender<Infallible>)>,
 ) -> Result<(), git2::Error> {
     // fetch changes from remote index
     repo.find_remote("origin")
@@ -161,10 +183,17 @@ async fn pull(
         let diff: Diff =
             repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
         let (krate, action) = diff_one(diff)?;
-        notify(krate, action, bot, db, cfg).await;
-        fast_forward(repo, next)?;
-        // Try to prevent "too many requests" error from telegram
-        tokio::time::sleep(cfg.update_delay_millis.into()).await;
+
+        let (tx, mut rx) = oneshot::channel();
+        ch.blocking_send((krate, action, tx)).ok().unwrap();
+
+        // Wait untill the crate is processed before moving on
+        while let Err(oneshot::error::TryRecvError::Empty) = rx.try_recv() {
+            // Yeild/sleep to not spend all resources
+            std::thread::sleep(Duration::from_secs(1));
+        }
+
+        fast_forward(&repo, next)?;
     }
 
     Ok(())

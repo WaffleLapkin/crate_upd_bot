@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Spirious timeout errors (move git work onto non-tokio thread)
 - `^C` handling (shutdown instead of hanging)
 
 ## 0.1.5
