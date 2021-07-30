@@ -203,7 +203,7 @@ fn pull(
         }
 
         // 'Move' to the next commit
-        fast_forward(&repo, next)?;
+        fast_forward(repo, next)?;
     }
 
     Ok(())
@@ -309,7 +309,7 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Bot, db: &Database, cfg:
         .await
         .map(Left)
         .map_err(|err| log::error!("db error while getting subscribers: {}", err))
-        .unwrap_or(Right(iter::empty()));
+        .unwrap_or_else(|()| Right(iter::empty()));
 
     if let Some(chat_id) = cfg.channel {
         if !cfg.ban.crates.contains(krate.id.name.as_str()) {

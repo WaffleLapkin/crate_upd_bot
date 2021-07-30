@@ -122,7 +122,7 @@ impl Prepared {
                 res?;
                 unreachable!()
             },
-            this = prepare => return this,
+            this = prepare => this,
         }
     }
 }

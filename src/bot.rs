@@ -146,7 +146,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
 async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
     let mut subscriptions: Vec<_> = db.list_subscriptions(chat_id).await?.collect();
     for sub in &mut subscriptions {
-        match Crate::read_last(sub, &cfg).await {
+        match Crate::read_last(sub, cfg).await {
             Ok(krate) => {
                 sub.push('#');
                 sub.push_str(&krate.id.vers);
@@ -188,12 +188,12 @@ async fn subscribe(
     cfg: &Config,
 ) -> Result<Option<String>, HErr> {
     if PathBuf::from(cfg.index_path.as_str())
-        .also(|p| p.push(crate_path(&krate)))
+        .also(|p| p.push(crate_path(krate)))
         .exists()
     {
-        db.subscribe(chat_id, &krate).await?;
+        db.subscribe(chat_id, krate).await?;
 
-        let ver = match Crate::read_last(&krate, &cfg).await {
+        let ver = match Crate::read_last(krate, cfg).await {
             Ok(krate) => format!(
                 " (current version <code>{}</code> {})",
                 krate.id.vers,
