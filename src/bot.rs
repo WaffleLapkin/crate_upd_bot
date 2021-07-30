@@ -1,13 +1,16 @@
-use std::{ops::Not, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, ops::Not, path::PathBuf, sync::Arc};
 
-use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERSION};
 use fntools::value::ValueExt;
+use futures::{future, Future, FutureExt};
 use teloxide::{
     prelude::{Requester, *},
     types::{Me, Message},
     utils::command::{BotCommand, ParseError},
     RequestError,
 };
+use tokio_stream::wrappers::UnboundedReceiverStream;
+
+use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERSION};
 
 type OptString = Option<String>;
 
@@ -34,12 +37,14 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
     let Me { user, .. } = bot.get_me().await.expect("Couldn't get myself :(");
     let name = user.username.expect("Bots *must* have usernames");
 
-    let f = |UpdateWithCx {
-                 update: msg,
-                 requester: bot,
-             }: UpdateWithCx<Bot, Message>,
-             cmd: Command,
-             (db, cfg): (Database, Arc<Config>)| async move {
+    let commands = |(
+        UpdateWithCx {
+            update: msg,
+            requester: bot,
+        },
+        cmd,
+    ): (UpdateWithCx<Bot, Message>, Command),
+                    (db, cfg): (Database, Arc<Config>)| async move {
         let chat_id = msg.chat.id;
 
         check_privileges(&bot, &msg).await?;
@@ -140,7 +145,53 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         Ok::<_, HErr>(())
     };
 
-    teloxide::commands_repl(bot, name, with((db, cfg), f)).await
+    let unblock = |UpdateWithCx {
+                       update,
+                       requester: bot,
+                   }: UpdateWithCx<Bot, ChatMemberUpdated>,
+                   (db, _cfg): (Database, Arc<Config>)| async move {
+        let ChatMemberUpdated {
+            from,
+            old_chat_member,
+            new_chat_member,
+            ..
+        } = &update;
+        if old_chat_member.is_present() && !new_chat_member.is_present() {
+            // FIXME: ideally the bot should just mark the user as temporary unavailable
+            // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
+            for sub in db.list_subscriptions(from.id).await? {
+                db.unsubscribe(from.id, &sub).await?;
+            }
+        } else if !old_chat_member.is_present() && new_chat_member.is_present() {
+            bot.send_message(
+                from.id,
+                "You have previously blocked this bot. This removed all your subsctiptions.",
+            )
+            .await?;
+        } else {
+            log::warn!("Got weird MyChatMember update: {:?}", update);
+        }
+
+        Ok::<_, HErr>(())
+    };
+
+    let ctx = (db.clone(), cfg.clone());
+
+    let mut dp = Dispatcher::new(bot)
+        .messages_handler(move |rx| async move {
+            UnboundedReceiverStream::new(rx)
+                .commands(name)
+                .for_each_concurrent(None, err(with(ctx, commands)))
+                .await
+        })
+        .my_chat_members_handler(move |rx| async move {
+            UnboundedReceiverStream::new(rx)
+                .for_each_concurrent(None, err(with((db, cfg), unblock)))
+                .await
+        })
+        .setup_ctrlc_handler();
+
+    dp.dispatch().await;
 }
 
 async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
@@ -209,11 +260,26 @@ async fn subscribe(
 }
 
 // why aren't we in an FP lang? :(
-fn with<A, B, C, U>(ctx: C, f: impl Fn(A, B, C) -> U) -> impl Fn(A, B) -> U
+fn with<A, B, U>(ctx: B, f: impl Fn(A, B) -> U) -> impl Fn(A) -> U
 where
-    C: Clone,
+    B: Clone,
 {
-    move |a, b| f(a, b, ctx.clone())
+    move |a| f(a, ctx.clone())
+}
+
+/// Process errors (log)
+fn err<T, E, F>(f: impl Fn(T) -> F) -> impl Fn(T) -> future::Map<F, fn(Result<(), E>) -> ()>
+where
+    F: Future<Output = Result<(), E>>,
+    E: Debug,
+{
+    move |x| {
+        f(x).map(|r| {
+            if let Err(err) = r {
+                log::error!("Error in handler: {:?}", err);
+            }
+        })
+    }
 }
 
 fn opt(input: String) -> Result<(Option<String>,), ParseError> {

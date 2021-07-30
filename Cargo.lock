@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "arraylib",
  "async-trait",
@@ -185,6 +185,7 @@ dependencies = [
  "teloxide",
  "tokio",
  "tokio-postgres",
+ "tokio-stream",
  "toml",
 ]
 
