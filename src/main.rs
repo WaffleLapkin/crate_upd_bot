@@ -1,10 +1,13 @@
 // TODO: somehow better handle rate-limits (https://core.telegram.org/bots/faq#broadcasting-to-users)
 //       maybe concat many messages into one (in channel) + queues to properly
-// handle limits
+//       handle limits
+
+// When index colapses, use `git reset --hard origin/master`
 use std::sync::Arc;
 
 use arraylib::Slice;
 use fntools::{self, value::ValueExt};
+use futures::future::{abortable, pending};
 use git2::{Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
@@ -13,6 +16,7 @@ use teloxide::{
     prelude::*,
     types::ParseMode,
 };
+use tokio::select;
 use tokio_postgres::NoTls;
 
 use crate::{db::Database, krate::Crate, util::tryn};
@@ -75,20 +79,35 @@ async fn main() {
         .parse_mode(ParseMode::Html)
         .auto_send();
 
-    let pull_loop = async {
-        loop {
-            log::info!("start pulling updates");
-            pull(&repo, &bot, &db, &config).await.expect("pull failed");
-            log::info!("pulling updates finished");
+    let (pull_loop, abort_handle) = {
+        let (abortable, handle) = abortable(pending::<()>());
+        let fut = async {
+            let mut abortable = abortable;
+            loop {
+                log::info!("start pulling updates");
+                pull(&repo, &bot, &db, &config).await.expect("pull failed");
+                log::info!("pulling updates finished");
 
-            tokio::time::sleep(config.pull_delay).await; // delay for 5 min
-        }
+                // delay for `config.pull_delay` (default 5 min) or break the loop in case of an
+                // abort
+                select! {
+                    () = tokio::time::sleep(config.pull_delay) => {},
+                    _ = &mut abortable => break,
+                }
+            }
+        };
+
+        (fut, handle)
     };
 
-    tokio::join!(
-        pull_loop,
-        bot::run(bot.clone(), db.clone(), Arc::clone(&config))
-    );
+    let tg_loop = async {
+        bot::run(bot.clone(), db.clone(), Arc::clone(&config)).await;
+
+        // When bot stopped executing (e.g. because of ^C) stop pull loop
+        abort_handle.abort();
+    };
+
+    tokio::join!(pull_loop, tg_loop);
 }
 
 // from https://stackoverflow.com/a/58778350

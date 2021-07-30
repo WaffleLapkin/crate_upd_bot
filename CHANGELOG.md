@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+### Fixed
+
+- `^C` handling (shutdown instead of hanging)
+
 ## 0.1.5
 
 ### Changed
@@ -21,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.1.2
 
-### Fixes
+### Fixed
 
 - Use index path from config, when reading last crate version 
 
