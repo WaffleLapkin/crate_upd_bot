@@ -1,11 +1,13 @@
 use std::{
     future::Future,
     path::{Path, PathBuf},
+    time::Duration,
 };
-use tokio::time::{sleep, Duration};
 
-/// Path to crate file in crates.io-index. Implementation is stolen from
-/// https://github.com/rust-lang/crates.io/blob/06bfd00ca4c2fce1e9c674d0d792a5ca56d32350/src/git.rs#L179-L187
+/// Path to crate file in crates.io-index.
+///
+/// Implementation is stolen from
+/// <https://github.com/rust-lang/crates.io/blob/06bfd00ca4c2fce1e9c674d0d792a5ca56d32350/src/git.rs#L179-L187>
 pub fn crate_path(name: &str) -> PathBuf {
     let name = name.to_lowercase();
     match name.len() {
@@ -16,24 +18,20 @@ pub fn crate_path(name: &str) -> PathBuf {
     }
 }
 
-macro_rules! tryok {
-    ($e:expr) => {
-        match $e {
-            Ok(ok) => return Ok(ok),
-            Err(err) => err,
-        }
-    };
-}
-
-pub async fn tryn<F, Fut, T, E>(n: usize, del: Duration, mut f: F) -> Result<T, E>
+/// Try executing async function `f`. On error delay for `delay`. If after `n`
+/// tries `f` still fails, return last error.
+pub async fn tryn<F, Fut, T, E>(n: usize, delay: Duration, mut f: F) -> Result<T, E>
 where
     F: FnMut() -> Fut,
     Fut: Future<Output = Result<T, E>>,
 {
-    let mut err = tryok!(f().await);
-    for _ in 0..n {
-        sleep(del).await;
-        err = tryok!(f().await);
+    for _ in 1..n {
+        if let ret @ Ok(_) = f().await {
+            return ret;
+        }
+
+        tokio::time::sleep(delay).await;
     }
-    Err(err)
+
+    f().await
 }

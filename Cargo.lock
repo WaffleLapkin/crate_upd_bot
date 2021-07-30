@@ -168,11 +168,12 @@ dependencies = [
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "arraylib",
  "async-trait",
  "derive_more",
+ "either",
  "fntools",
  "futures",
  "git2",
@@ -279,6 +280,12 @@ checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "either"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "encoding_rs"
