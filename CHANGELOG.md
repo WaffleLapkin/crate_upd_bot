@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.7
+
+### Added
+
+- Unsubscribe users from all crates when they block the bot
+
 ## 0.1.6
 
 ### Changed
