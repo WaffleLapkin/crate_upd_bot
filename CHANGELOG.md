@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+### Changed
+
+- Prepare database queries beforehand
+
 ### Fixed
 
 - Spirious timeout errors (move git work onto non-tokio thread)
