@@ -9,7 +9,7 @@ use arraylib::Slice;
 use either::Either::{Left, Right};
 use fntools::{self, value::ValueExt};
 use futures::future::{self, pending};
-use git2::{Delta, Diff, DiffOptions, Repository, Sort};
+use git2::{Commit, Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
 use teloxide::{
@@ -37,12 +37,13 @@ type Bot = AutoSend<DefaultParseMode<teloxide::Bot>>;
 
 #[tokio::main]
 async fn main() {
-    unsafe {
-        dbg!(libgit2_sys::git_libgit2_opts(
-            libgit2_sys::GIT_OPT_SET_MWINDOW_FILE_LIMIT as _,
-            128
-        ))
-    };
+    assert_eq!(
+        unsafe {
+            let opt = libgit2_sys::GIT_OPT_SET_MWINDOW_FILE_LIMIT as _;
+            libgit2_sys::git_libgit2_opts(opt, 128)
+        },
+        0,
+    );
 
     let config = Arc::new(cfg::Config::read().expect("couldn't read config"));
 
@@ -190,7 +191,7 @@ fn pull(
         }
 
         let diff = repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
-        let (krate, action) = diff_one(diff)?;
+        let (krate, action) = diff_one(diff, (prev, next))?;
 
         // Send crates.io update to notifier
         let (tx, mut rx) = oneshot::channel();
@@ -217,7 +218,7 @@ enum ActionKind {
 
 /// Get a `crates.io` update from a diff of 2 consecutive commits from a
 /// `crates.io-index` repository.
-fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
+fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKind), git2::Error> {
     let mut prev = None;
     let mut next = None;
 
@@ -234,7 +235,9 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
                         '-' => {
                             assert!(
                                 prev.is_none(),
-                                "Expected number of deletions <= 1 per commit"
+                                "Expected number of deletions <= 1 per commit ({} -> {})",
+                                commits.0.id(),
+                                commits.1.id(),
                             );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
@@ -245,7 +248,9 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
                         '+' => {
                             assert!(
                                 next.is_none(),
-                                "Expected number of additions = 1 per commit"
+                                "Expected number of additions = 1 per commit ({} -> {})",
+                                commits.0.id(),
+                                commits.1.id(),
                             );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
@@ -265,6 +270,12 @@ fn diff_one(diff: Diff) -> Result<(Crate, ActionKind), git2::Error> {
         }),
     )?;
 
+    assert!(
+        next.is_some(),
+        "Expected number of additions = 1 per commit ({} -> {})",
+        commits.0.id(),
+        commits.1.id(),
+    );
     let next = next.expect("Expected number of additions = 1 per commit");
     match (prev.as_ref().map(|c| c.yanked), next.yanked) {
         /* was yanked?, is yanked? */

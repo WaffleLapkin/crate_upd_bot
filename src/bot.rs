@@ -283,9 +283,9 @@ where
 }
 
 fn opt(input: String) -> Result<(Option<String>,), ParseError> {
-    match dbg!(input.split_whitespace().count()) {
+    match input.split_whitespace().count() {
         0 => Ok((None,)),
-        1 => dbg!(Ok((Some(input),))),
+        1 => Ok((Some(input),)),
         n => Err(ParseError::TooManyArguments {
             expected: 1,
             found: n,

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.8
+
+### Changed
+
+- Improve some panic messages for easier problem identifying
+- Remove `dbg!` exprs
+
 ## 0.1.7
 
 ### Added
