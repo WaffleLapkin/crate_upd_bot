@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.9
+
+### Fixed
+
+- Panics on failed git pull (remove `.expect`s)
+
 ## 0.1.8
 
 ### Changed

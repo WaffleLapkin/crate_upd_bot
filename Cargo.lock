@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "arraylib",
  "async-trait",

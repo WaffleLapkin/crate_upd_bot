@@ -87,7 +87,11 @@ async fn main() {
         std::thread::spawn(move || {
             'outer: loop {
                 log::info!("start pulling updates");
-                pull(&repo, tx.clone()).expect("pull failed");
+
+                if let Err(err) = pull(&repo, tx.clone()) {
+                    log::error!("couldn't pull new crate version from the index: {}", err)
+                }
+
                 log::info!("pulling updates finished");
 
                 // delay for `config.pull_delay` (default 5 min)
@@ -159,10 +163,7 @@ fn pull(
     ch: Sender<(Crate, ActionKind, oneshot::Sender<Infallible>)>,
 ) -> Result<(), git2::Error> {
     // fetch changes from remote index
-    repo.find_remote("origin")
-        .expect("couldn't find 'origin' remote")
-        .fetch(&["master"], None, None)
-        .expect("couldn't fetch new version of the index");
+    repo.find_remote("origin")?.fetch(&["master"], None, None)?;
 
     // Collect all commits in the range `HEAD~1..FETCH_HEAD` (i.e. one before
     // currently checked out to the last fetched)
