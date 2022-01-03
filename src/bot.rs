@@ -167,6 +167,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
             new_chat_member,
             ..
         } = &update;
+
         if old_chat_member.is_present() && !new_chat_member.is_present() {
             // FIXME: ideally the bot should just mark the user as temporary unavailable
             // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
