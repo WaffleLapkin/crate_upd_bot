@@ -50,16 +50,16 @@ async fn commands_handler(
     (db, cfg): (Database, Arc<Config>),
 ) -> Result<(), HErr> {
     let UpdateWithCx {
-            update: msg,
-            requester: bot,
+        update: msg,
+        requester: bot,
     } = update_with_cx;
-        let chat_id = msg.chat.id;
+    let chat_id = msg.chat.id;
 
-        check_privileges(&bot, &msg).await?;
+    check_privileges(&bot, &msg).await?;
 
-        match cmd {
-            Command::Start => {
-                let greeting = format!(
+    match cmd {
+        Command::Start => {
+            let greeting = format!(
                     "Hi! I will notify you about updates of crates. \
                      Use /subscribe to subscribe for updates of crates you want to be notified about.\n\
                      \n\
@@ -71,84 +71,84 @@ async fn commands_handler(
                      Version: <code>{version}</code>", 
                     version = VERSION
                 );
-                bot.send_message(chat_id, greeting).await?;
-            }
-            Command::Subscribe(Some(krate)) => match subscribe(chat_id, &krate, &db, &cfg).await? {
-                Some(ver) => {
-                    bot.send_message(
-                        chat_id,
-                        format!(
-                            "You've successfully subscribed for updates on <code>{}</code>{} \
-                             crate. Use /unsubscribe to unsubscribe.",
-                            krate, ver
-                        ),
-                    )
-                    .disable_web_page_preview(true)
-                    .await?;
-                }
-                None => {
-                    bot.send_message(
-                        chat_id,
-                        format!("Error: there is no such crate <code>{}</code>.", krate),
-                    )
-                    .await?;
-                }
-            },
-            Command::Subscribe(None) => {
-                bot.send_message(
-                    chat_id,
-                    "You need to specify the crate you want to subscribe. Like this: \
-                     <pre>/subscribe serde</pre>",
-                )
-                .await?;
-            }
-            Command::Unsubscribe(Some(krate)) => {
-                db.unsubscribe(chat_id, &krate).await?;
+            bot.send_message(chat_id, greeting).await?;
+        }
+        Command::Subscribe(Some(krate)) => match subscribe(chat_id, &krate, &db, &cfg).await? {
+            Some(ver) => {
                 bot.send_message(
                     chat_id,
                     format!(
-                        "You've successfully unsubscribed for updates on <code>{}</code> crate. \
-                         Use /subscribe to subscribe back.",
-                        krate
+                        "You've successfully subscribed for updates on <code>{}</code>{} crate. \
+                         Use /unsubscribe to unsubscribe.",
+                        krate, ver
+                    ),
+                )
+                .disable_web_page_preview(true)
+                .await?;
+            }
+            None => {
+                bot.send_message(
+                    chat_id,
+                    format!("Error: there is no such crate <code>{}</code>.", krate),
+                )
+                .await?;
+            }
+        },
+        Command::Subscribe(None) => {
+            bot.send_message(
+                chat_id,
+                "You need to specify the crate you want to subscribe. Like this: <pre>/subscribe \
+                 serde</pre>",
+            )
+            .await?;
+        }
+        Command::Unsubscribe(Some(krate)) => {
+            db.unsubscribe(chat_id, &krate).await?;
+            bot.send_message(
+                chat_id,
+                format!(
+                    "You've successfully unsubscribed for updates on <code>{}</code> crate. Use \
+                     /subscribe to subscribe back.",
+                    krate
+                ),
+            )
+            .await?;
+        }
+        Command::Unsubscribe(None) => {
+            bot.send_message(
+                chat_id,
+                "You need to specify the crate you want to unsubscribe. Like this: \
+                 <code>/unsubscribe serde</code>",
+            )
+            .await?;
+        }
+        Command::List => {
+            let subscriptions = list_subscriptions(chat_id, &db, &cfg).await?;
+
+            if subscriptions.is_empty() {
+                bot.send_message(
+                    chat_id,
+                    String::from(
+                        "Currently you aren't subscribed to anything. Use /subscribe to subscribe \
+                         to some crate.",
                     ),
                 )
                 .await?;
-            }
-            Command::Unsubscribe(None) => {
+            } else {
                 bot.send_message(
                     chat_id,
-                    "You need to specify the crate you want to unsubscribe. Like this: \
-                     <code>/unsubscribe serde</code>",
+                    format!(
+                        "You are currently subscribed to:\n— <code>{}",
+                        subscriptions.join("\n— <code>")
+                    ),
                 )
+                .disable_web_page_preview(true)
                 .await?;
             }
-            Command::List => {
-            let subscriptions = list_subscriptions(chat_id, &db, &cfg).await?;
-
-                if subscriptions.is_empty() {
-                    bot.send_message(
-                        chat_id,
-                        String::from(
-                            "Currently you aren't subscribed to anything. Use /subscribe to \
-                             subscribe to some crate.",
-                        ),
-                    )
-                    .await?;
-                } else {
-                    bot.send_message(
-                        chat_id,
-                        format!(
-                            "You are currently subscribed to:\n— <code>{}",
-                            subscriptions.join("\n— <code>")
-                        ),
-                    )
-                    .disable_web_page_preview(true)
-                    .await?;
-                }
-            }
         }
+    }
 
-        Ok::<_, HErr>(())
+    Ok::<_, HErr>(())
 }
 
 async fn unblock_handler(
@@ -156,34 +156,34 @@ async fn unblock_handler(
     (db, _cfg): (Database, Arc<Config>),
 ) -> Result<(), HErr> {
     let UpdateWithCx {
-                       update,
-                       requester: bot,
+        update,
+        requester: bot,
     } = update_with_cx;
 
-        let ChatMemberUpdated {
-            from,
-            old_chat_member,
-            new_chat_member,
-            ..
-        } = &update;
+    let ChatMemberUpdated {
+        from,
+        old_chat_member,
+        new_chat_member,
+        ..
+    } = &update;
 
-        if old_chat_member.is_present() && !new_chat_member.is_present() {
-            // FIXME: ideally the bot should just mark the user as temporary unavailable
-            // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
-            for sub in db.list_subscriptions(from.id).await? {
-                db.unsubscribe(from.id, &sub).await?;
-            }
-        } else if !old_chat_member.is_present() && new_chat_member.is_present() {
-            bot.send_message(
-                from.id,
-                "You have previously blocked this bot. This removed all your subsctiptions.",
-            )
-            .await?;
-        } else {
-        warn!("Got weird MyChatMember update: {:?}", update);
+    if old_chat_member.is_present() && !new_chat_member.is_present() {
+        // FIXME: ideally the bot should just mark the user as temporary unavailable
+        // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
+        for sub in db.list_subscriptions(from.id).await? {
+            db.unsubscribe(from.id, &sub).await?;
         }
+    } else if !old_chat_member.is_present() && new_chat_member.is_present() {
+        bot.send_message(
+            from.id,
+            "You have previously blocked this bot. This removed all your subsctiptions.",
+        )
+        .await?;
+    } else {
+        warn!("Got weird MyChatMember update: {:?}", update);
+    }
 
-        Ok::<_, HErr>(())
+    Ok::<_, HErr>(())
 }
 
 pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
