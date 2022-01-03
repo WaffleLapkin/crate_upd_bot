@@ -95,7 +95,6 @@ async fn main() {
                 info!("pulling updates finished");
 
                 // delay for `config.pull_delay` (default 5 min)
-                {
                     let mut pd = pull_delay;
                     const STEP: Duration = Duration::from_secs(5);
 
@@ -108,7 +107,6 @@ async fn main() {
                         std::thread::sleep(STEP);
                     }
                 }
-            }
         })
     };
 
