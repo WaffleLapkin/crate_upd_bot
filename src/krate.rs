@@ -56,8 +56,8 @@ impl Crate {
         )
     }
 
-    pub async fn read_last(name: &str, cfg: &Config) -> io::Result<Self> {
-        let file = File::open(Path::new(cfg.index_path.as_str()).join(crate_path(name))).await?;
+    pub async fn read_last(path: &Path) -> io::Result<Self> {
+        let file = File::open(path).await?;
         let mut lines = BufReader::new(file).lines();
         let mut last = None;
         while let next @ Some(_) = lines.next_line().await? {

@@ -1,6 +1,5 @@
-use std::{fmt::Debug, ops::Not, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, path::Path, sync::Arc};
 
-use fntools::value::ValueExt;
 use futures::{future, Future, FutureExt};
 use log::{error, warn};
 use teloxide::{
@@ -209,7 +208,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
 async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
     let mut subscriptions: Vec<_> = db.list_subscriptions(chat_id).await?.collect();
     for sub in &mut subscriptions {
-        match Crate::read_last(sub, cfg).await {
+        let path = Path::new(cfg.index_path.as_str()).join(crate_path(sub));
+        match Crate::read_last(&path).await {
             Ok(krate) => {
                 sub.push('#');
                 sub.push_str(&krate.id.vers);
@@ -245,13 +245,11 @@ async fn subscribe(
     db: &Database,
     cfg: &Config,
 ) -> Result<Option<String>, HErr> {
-    if PathBuf::from(cfg.index_path.as_str())
-        .also(|p| p.push(crate_path(krate)))
-        .exists()
-    {
+    let path = Path::new(cfg.index_path.as_str()).join(crate_path(krate));
+    if path.exists() {
         db.subscribe(chat_id, krate).await?;
 
-        let ver = match Crate::read_last(krate, cfg).await {
+        let ver = match Crate::read_last(&path).await {
             Ok(krate) => format!(
                 " (current version <code>{}</code> {})",
                 krate.id.vers,
