@@ -1,7 +1,8 @@
 use fntools::value::ValueExt;
+use serde::Deserialize;
 use std::{collections::HashSet, error::Error, fs::File, io::Read, time::Duration};
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     /// Channel to post **ALL** updates
     #[serde(default)]
@@ -44,7 +45,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DbConfig {
     pub host: String,
     pub user: String,
@@ -59,14 +60,14 @@ impl DbConfig {
     }
 }
 
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct BanConfig {
     /// Names of banned crates (they won't show up in the channel)
     #[serde(default)]
     pub crates: HashSet<String>,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct BroadcastDelay {
     pub millis: u64,
@@ -84,7 +85,7 @@ impl From<BroadcastDelay> for Duration {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct UpdateDelay {
     pub millis: u64,
@@ -102,7 +103,7 @@ impl From<UpdateDelay> for Duration {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct RetryDelay(pub Duration);
 

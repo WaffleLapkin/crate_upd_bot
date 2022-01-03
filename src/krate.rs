@@ -1,4 +1,4 @@
-use crate::{cfg::Config, util::crate_path};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tokio::{
     fs::File,
@@ -6,7 +6,7 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
 };
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Crate {
     // TODO: stole from crates.io repo?
     #[serde(flatten)]
@@ -15,7 +15,7 @@ pub struct Crate {
     // ignore all unrelated stuff :D
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct CrateId {
     pub name: String,
     pub vers: String,

@@ -2,6 +2,7 @@ use std::{fmt::Debug, ops::Not, path::PathBuf, sync::Arc};
 
 use fntools::value::ValueExt;
 use futures::{future, Future, FutureExt};
+use log::{error, warn};
 use teloxide::{
     prelude::{Requester, *},
     types::{Me, Message},
@@ -169,7 +170,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
             )
             .await?;
         } else {
-            log::warn!("Got weird MyChatMember update: {:?}", update);
+        warn!("Got weird MyChatMember update: {:?}", update);
         }
 
         Ok::<_, HErr>(())
@@ -276,7 +277,7 @@ where
     move |x| {
         f(x).map(|r| {
             if let Err(err) = r {
-                log::error!("Error in handler: {:?}", err);
+                error!("Error in handler: {:?}", err);
             }
         })
     }

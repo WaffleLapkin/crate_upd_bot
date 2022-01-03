@@ -10,7 +10,7 @@ use either::Either::{Left, Right};
 use fntools::{self, value::ValueExt};
 use futures::future::{self, pending};
 use git2::{Commit, Delta, Diff, DiffOptions, Repository, Sort};
-use log::info;
+use log::{error, info, warn};
 use std::str;
 use teloxide::{
     adaptors::{AutoSend, DefaultParseMode},
@@ -86,13 +86,13 @@ async fn main() {
         let pull_delay = config.pull_delay;
         std::thread::spawn(move || {
             'outer: loop {
-                log::info!("start pulling updates");
+                info!("start pulling updates");
 
                 if let Err(err) = pull(&repo, tx.clone()) {
-                    log::error!("couldn't pull new crate version from the index: {}", err)
+                    error!("couldn't pull new crate version from the index: {}", err);
                 }
 
-                log::info!("pulling updates finished");
+                info!("pulling updates finished");
 
                 // delay for `config.pull_delay` (default 5 min)
                 {
@@ -179,7 +179,7 @@ fn pull(
         // Commits from humans tend to be formatted differently, compared to
         // machine-generated ones. This basically makes them unanalyzable.
         if next.author().name() != Some("bors") {
-            log::warn!(
+            warn!(
                 "Skip commit#{} from non-bors user @{}: {}",
                 next.id(),
                 next.author().name().unwrap_or("<invalid utf-8>"),
@@ -263,7 +263,7 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
                     }
                 }
                 delta => {
-                    log::warn!("Unexpected delta: {:?}", delta);
+                    warn!("Unexpected delta: {:?}", delta);
                 }
             }
 
@@ -297,7 +297,7 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
         }
         _unexpected => {
             // Something unexpected happened
-            log::warn!("Unexpected diff_one input: {:?}, {:?}", next, prev);
+            warn!("Unexpected diff_one input: {:?}, {:?}", next, prev);
             Err(git2::Error::from_str("Unexpected diff"))
         }
     }
@@ -351,11 +351,6 @@ async fn notify_inner(
     .await
     .map(drop)
     .unwrap_or_else(|err| {
-        log::error!(
-            "error while trying to send notification about {:?} to {}: {}",
-            krate,
-            chat_id,
-            err
-        )
+        error!(
     });
 }
