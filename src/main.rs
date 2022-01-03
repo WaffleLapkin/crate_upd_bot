@@ -314,23 +314,29 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Bot, db: &Database, cfg:
         }
     );
 
-    let users = db
-        .list_subscribers(&krate.id.name)
-        .await
-        .map(Left)
-        .map_err(|err| log::error!("db error while getting subscribers: {}", err))
-        .unwrap_or_else(|()| Right(iter::empty()));
-
+    let channel_fut = async {
     if let Some(chat_id) = cfg.channel {
         if !cfg.ban.crates.contains(krate.id.name.as_str()) {
             notify_inner(bot, chat_id, &message, cfg, &krate, true).await;
         }
     }
+    };
+
+    let users_fut = async {
+        let users = db
+            .list_subscribers(&krate.id.name)
+            .await
+            .map(Left)
+            .map_err(|err| error!("db error while getting subscribers: {}", err))
+            .unwrap_or_else(|_| Right(iter::empty()));
 
     for chat_id in users {
         notify_inner(bot, chat_id, &message, cfg, &krate, false).await;
         tokio::time::sleep(cfg.broadcast_delay_millis.into()).await;
     }
+    };
+
+    tokio::join!(channel_fut, users_fut);
 }
 
 async fn notify_inner(
