@@ -127,7 +127,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 .await?;
             }
             Command::List => {
-                let subscriptions = list(chat_id, &db, &cfg).await?;
+            let subscriptions = list_subscriptions(chat_id, &db, &cfg).await?;
 
                 if subscriptions.is_empty() {
                     bot.send_message(
@@ -205,7 +205,11 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
     dp.dispatch().await;
 }
 
-async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
+async fn list_subscriptions(
+    chat_id: i64,
+    db: &Database,
+    cfg: &Config,
+) -> Result<Vec<String>, HErr> {
     let mut subscriptions: Vec<_> = db.list_subscriptions(chat_id).await?.collect();
     for sub in &mut subscriptions {
         let path = Path::new(cfg.index_path.as_str()).join(crate_path(sub));
