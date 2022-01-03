@@ -45,18 +45,14 @@ enum HErr {
     NotAdmin,
 }
 
-pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
-    let Me { user, .. } = bot.get_me().await.expect("Couldn't get myself :(");
-    let name = user.username.expect("Bots *must* have usernames");
-
-    let commands = |(
-        UpdateWithCx {
+async fn commands_handler(
+    (update_with_cx, cmd): (UpdateWithCx<Bot, Message>, Command),
+    (db, cfg): (Database, Arc<Config>),
+) -> Result<(), HErr> {
+    let UpdateWithCx {
             update: msg,
             requester: bot,
-        },
-        cmd,
-    ): (UpdateWithCx<Bot, Message>, Command),
-                    (db, cfg): (Database, Arc<Config>)| async move {
+    } = update_with_cx;
         let chat_id = msg.chat.id;
 
         check_privileges(&bot, &msg).await?;
@@ -153,13 +149,17 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         }
 
         Ok::<_, HErr>(())
-    };
+}
 
-    let unblock = |UpdateWithCx {
+async fn unblock_handler(
+    update_with_cx: UpdateWithCx<Bot, ChatMemberUpdated>,
+    (db, _cfg): (Database, Arc<Config>),
+) -> Result<(), HErr> {
+    let UpdateWithCx {
                        update,
                        requester: bot,
-                   }: UpdateWithCx<Bot, ChatMemberUpdated>,
-                   (db, _cfg): (Database, Arc<Config>)| async move {
+    } = update_with_cx;
+
         let ChatMemberUpdated {
             from,
             old_chat_member,
@@ -184,20 +184,25 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         }
 
         Ok::<_, HErr>(())
-    };
+}
 
-    let ctx = (db.clone(), cfg.clone());
+pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
+    let Me { user, .. } = bot.get_me().await.expect("Couldn't get myself :(");
+    let name = user.username.expect("Bots *must* have usernames");
+
+    let ctx_cloned = (db.clone(), cfg.clone());
+    let ctx = (db, cfg);
 
     let mut dp = Dispatcher::new(bot)
         .messages_handler(move |rx| async move {
             UnboundedReceiverStream::new(rx)
                 .commands(name)
-                .for_each_concurrent(None, err(with(ctx, commands)))
+                .for_each_concurrent(None, err(with(ctx_cloned, commands_handler)))
                 .await
         })
         .my_chat_members_handler(move |rx| async move {
             UnboundedReceiverStream::new(rx)
-                .for_each_concurrent(None, err(with((db, cfg), unblock)))
+                .for_each_concurrent(None, err(with(ctx, unblock_handler)))
                 .await
         })
         .setup_ctrlc_handler();
