@@ -26,6 +26,18 @@ enum Command {
     List,
 }
 
+fn opt(input: String) -> Result<(Option<String>,), ParseError> {
+    match input.split_whitespace().count() {
+        0 => Ok((None,)),
+        1 => Ok((Some(input),)),
+        n => Err(ParseError::TooManyArguments {
+            expected: 1,
+            found: n,
+            message: String::from("Wrong number of arguments"),
+        }),
+    }
+}
+
 #[derive(Debug, derive_more::Display, derive_more::From, derive_more::Error)]
 enum HErr {
     Tg(RequestError),
@@ -87,7 +99,6 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                     .await?;
                 }
             },
-
             Command::Subscribe(None) => {
                 bot.send_message(
                     chat_id,
@@ -96,7 +107,6 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 )
                 .await?;
             }
-
             Command::Unsubscribe(Some(krate)) => {
                 db.unsubscribe(chat_id, &krate).await?;
                 bot.send_message(
@@ -217,15 +227,10 @@ async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, 
 
 async fn check_privileges(bot: &Bot, msg: &Message) -> Result<(), HErr> {
     if !msg.chat.is_private() {
-        let admins = bot.get_chat_administrators(msg.chat_id()).await?;
-
         let user_id = msg.from().ok_or(HErr::GetUser)?.id;
-        if admins
-            .iter()
-            .map(|admin| admin.user.id)
-            .any(|id| id == user_id)
-            .not()
-        {
+
+        let admins = bot.get_chat_administrators(msg.chat_id()).await?;
+        if !admins.into_iter().any(|admin| admin.user.id == user_id) {
             return Err(HErr::NotAdmin);
         }
     };
@@ -280,17 +285,5 @@ where
                 error!("Error in handler: {:?}", err);
             }
         })
-    }
-}
-
-fn opt(input: String) -> Result<(Option<String>,), ParseError> {
-    match input.split_whitespace().count() {
-        0 => Ok((None,)),
-        1 => Ok((Some(input),)),
-        n => Err(ParseError::TooManyArguments {
-            expected: 1,
-            found: n,
-            message: String::from("Wrong number of arguments"),
-        }),
     }
 }

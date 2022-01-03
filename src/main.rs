@@ -350,5 +350,10 @@ async fn notify_inner(
     .map(drop)
     .unwrap_or_else(|err| {
         error!(
+            "error while trying to send notification about {krate:?} to {chat_id}: {err}",
+            krate = krate,
+            chat_id = chat_id,
+            err = err
+        );
     });
 }
