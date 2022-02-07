@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.10
+
+## Fixed
+
+- Commands with redundunt spaces are now parsed correctly, see #20
+
 ## 0.1.9
 
 ### Fixed
