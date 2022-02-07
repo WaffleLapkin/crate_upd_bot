@@ -3,6 +3,7 @@ use std::{fmt::Debug, ops::Not, path::PathBuf, sync::Arc};
 use fntools::value::ValueExt;
 use futures::{future, Future, FutureExt};
 use teloxide::{
+    payloads::SendMessageSetters,
     prelude::{Requester, *},
     types::{Me, Message},
     utils::command::{BotCommand, ParseError},
@@ -285,7 +286,7 @@ where
 fn opt(input: String) -> Result<(Option<String>,), ParseError> {
     match input.split_whitespace().count() {
         0 => Ok((None,)),
-        1 => Ok((Some(input),)),
+        1 => Ok((Some(input.trim().to_owned()),)),
         n => Err(ParseError::TooManyArguments {
             expected: 1,
             found: n,
