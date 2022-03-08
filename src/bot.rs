@@ -164,11 +164,17 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 db.unsubscribe(chat.id, &sub).await?;
             }
         } else if !old_chat_member.is_present() && new_chat_member.is_present() {
-            bot.send_message(
-                chat.id,
-                "You have previously blocked this bot. This removed all your subsctiptions.",
-            )
-            .await?;
+            // Do not trigger when the bot is added to a group
+            //
+            // FIXME: when we'll store bot bannedness in DB, this should check that the bot
+            // was previously blocked instead
+            if chat.is_private() {
+                bot.send_message(
+                    chat.id,
+                    "You have previously blocked this bot. This removed all your subsctiptions.",
+                )
+                .await?;
+            }
         } else {
             log::warn!("Got weird MyChatMember update: {:?}", update);
         }

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Fixed
 
 - Do not unsubscribe user from everything, when they remove a bot from a group
+- Do not send "You have previously blocked this bot. [...]" messages to users that added the bot to a group
 
 ## 0.1.10
 
