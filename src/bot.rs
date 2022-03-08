@@ -159,7 +159,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         } = &update;
         if old_chat_member.is_present() && !new_chat_member.is_present() {
             // FIXME: ideally the bot should just mark the user as temporary unavailable
-            // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
+            // (that is: until unblock/restart), but I'm too lazy to implement it rn.
             for sub in db.list_subscriptions(chat.id).await? {
                 db.unsubscribe(chat.id, &sub).await?;
             }
@@ -171,7 +171,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
             if chat.is_private() {
                 bot.send_message(
                     chat.id,
-                    "You have previously blocked this bot. This removed all your subsctiptions.",
+                    "You have previously blocked this bot. This removed all your subscriptions.",
                 )
                 .await?;
             }
