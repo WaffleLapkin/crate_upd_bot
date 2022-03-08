@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## Fixed
+
+- Do not unsubscribe user from everything, when they remove a bot from a group
+
 ## 0.1.10
 
 ## Fixed

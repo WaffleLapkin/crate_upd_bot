@@ -152,7 +152,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                    }: UpdateWithCx<Bot, ChatMemberUpdated>,
                    (db, _cfg): (Database, Arc<Config>)| async move {
         let ChatMemberUpdated {
-            from,
+            chat,
             old_chat_member,
             new_chat_member,
             ..
@@ -160,12 +160,12 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         if old_chat_member.is_present() && !new_chat_member.is_present() {
             // FIXME: ideally the bot should just mark the user as temporary unavailable
             // (that is: untill unblock/restart), but I'm too lazy to implement it rn.
-            for sub in db.list_subscriptions(from.id).await? {
-                db.unsubscribe(from.id, &sub).await?;
+            for sub in db.list_subscriptions(chat.id).await? {
+                db.unsubscribe(chat.id, &sub).await?;
             }
         } else if !old_chat_member.is_present() && new_chat_member.is_present() {
             bot.send_message(
-                from.id,
+                chat.id,
                 "You have previously blocked this bot. This removed all your subsctiptions.",
             )
             .await?;
