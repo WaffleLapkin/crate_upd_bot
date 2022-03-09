@@ -1,6 +1,6 @@
 [package]
 name = "crate_upd_bot"
-version = "0.1.10"
+version = "0.1.11"
 authors = ["Waffle <waffle.lapkin@gmail.com>"]
 edition = "2018"
 

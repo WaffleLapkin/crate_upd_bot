@@ -2,7 +2,7 @@
 //       maybe concat many messages into one (in channel) + queues to properly
 //       handle limits
 
-// When index colapses, use `git reset --hard origin/master`
+// When index collapses, use `git reset --hard origin/master`
 use std::{convert::Infallible, iter, sync::Arc, time::Duration};
 
 use arraylib::Slice;
@@ -198,9 +198,9 @@ fn pull(
         let (tx, mut rx) = oneshot::channel();
         ch.blocking_send((krate, action, tx)).ok().unwrap();
 
-        // Wait untill the crate is processed before moving on
+        // Wait until the crate is processed before moving on
         while let Err(oneshot::error::TryRecvError::Empty) = rx.try_recv() {
-            // Yeild/sleep to not spend all resources
+            // Yield/sleep to not spend all resources
             std::thread::sleep(Duration::from_secs(1));
         }
 
@@ -242,7 +242,7 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
                             );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
-                                .expect("cound't deserialize crate");
+                                .expect("couldn't deserialize crate");
 
                             prev = Some(krate);
                         }
@@ -255,7 +255,7 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
                             );
                             let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
                             let krate = serde_json::from_str::<Crate>(krate)
-                                .expect("cound't deserialize crate");
+                                .expect("couldn't deserialize crate");
 
                             next = Some(krate);
                         }
