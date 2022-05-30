@@ -15,7 +15,7 @@ use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERS
 
 type OptString = Option<String>;
 
-#[derive(BotCommand, PartialEq, Debug)]
+#[derive(BotCommand, PartialEq, Eq, Debug)]
 #[command(rename = "lowercase", parse_with = "split")]
 enum Command {
     Start,

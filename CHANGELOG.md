@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.12
+
+### Fixed
+
+- The bot does not panic on weird git commits anymore
+
+### Added
+
+- You can now specify `error_report_channel_id` in the config to be notified about errors
+
 ## 0.1.11
 
 ### Fixed
@@ -18,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Commands with redundunt spaces are now parsed correctly, see #20
+- Commands with redundant spaces are now parsed correctly, see #20
 
 ## 0.1.9
 

@@ -3,6 +3,7 @@
 //       handle limits
 
 // When index collapses, use `git reset --hard origin/master`
+#![allow(clippy::type_complexity)]
 use std::{convert::Infallible, iter, sync::Arc, time::Duration};
 
 use arraylib::Slice;
@@ -117,8 +118,18 @@ async fn main() {
         .auto_send();
 
     let notify_loop = async {
-        while let Some((krate, action, _unblock)) = rx.recv().await {
-            notify(krate, action, &bot, &db, &config).await;
+        while let Some((res, _unblock)) = rx.recv().await {
+            match res {
+                Ok((krate, action)) => notify(krate, action, &bot, &db, &config).await,
+                Err(e) => {
+                    log::error!("diff_one error: {e:?}");
+                    if let Some(chat_id) = config.error_report_channel_id {
+                        bot.send_message(chat_id, format!("diff_one error: {e:?}"))
+                            .await
+                            .ok();
+                    }
+                }
+            }
 
             // implicitly unblock git2 thread by dropping `_unblock`
         }
@@ -160,7 +171,10 @@ fn fast_forward(repo: &Repository, commit: &git2::Commit) -> Result<(), git2::Er
 
 fn pull(
     repo: &Repository,
-    ch: Sender<(Crate, ActionKind, oneshot::Sender<Infallible>)>,
+    ch: Sender<(
+        Result<(Crate, ActionKind), git2::Error>,
+        oneshot::Sender<Infallible>,
+    )>,
 ) -> Result<(), git2::Error> {
     // fetch changes from remote index
     repo.find_remote("origin")?.fetch(&["master"], None, None)?;
@@ -176,27 +190,39 @@ fn pull(
     let opts = opts.context_lines(0).minimal(true);
 
     for [prev, next] in Slice::array_windows::<[_; 2]>(&commits?[..]) {
+        let message = next
+            .message()
+            .unwrap_or("<invalid utf-8>")
+            .trim_end_matches('\n');
+
         // Commits from humans tend to be formatted differently, compared to
         // machine-generated ones. This basically makes them unanalyzable.
         if next.author().name() != Some("bors") {
             log::warn!(
-                "Skip commit#{} from non-bors user @{}: {}",
+                "Skip commit#{} from non-bors user @{}: {message}",
                 next.id(),
                 next.author().name().unwrap_or("<invalid utf-8>"),
-                next.message()
-                    .unwrap_or("<invalid utf-8>")
-                    .trim_end_matches('\n'),
             );
 
             continue;
         }
 
+        if message == "Crate version removal request" {
+            log::warn!("Skip crate version removal request commit#{}", next.id());
+            continue;
+        }
+
+        if message.starts_with("Merge remote-tracking branch") {
+            log::warn!("Skip merge commit#{}", next.id());
+            continue;
+        }
+
         let diff = repo.diff_tree_to_tree(Some(&prev.tree()?), Some(&next.tree()?), Some(opts))?;
-        let (krate, action) = diff_one(diff, (prev, next))?;
+        let res = diff_one(diff, (prev, next));
 
         // Send crates.io update to notifier
         let (tx, mut rx) = oneshot::channel();
-        ch.blocking_send((krate, action, tx)).ok().unwrap();
+        ch.blocking_send((res, tx)).ok().unwrap();
 
         // Wait until the crate is processed before moving on
         while let Err(oneshot::error::TryRecvError::Empty) = rx.try_recv() {
@@ -223,6 +249,8 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
     let mut prev = None;
     let mut next = None;
 
+    let mut error = Ok(());
+
     diff.foreach(
         &mut |_, _| true,
         None,
@@ -231,31 +259,57 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
             match delta.status() {
                 // New version of a crate or (un)yanked old version
                 Delta::Modified | Delta::Added => {
-                    assert!(delta.nfiles() == 2 || delta.nfiles() == 1);
+                    if !(delta.nfiles() == 2 || delta.nfiles() == 1) {
+                        error = Err(format!("Unexpected delta.nfiles: {delta:?}"));
+                        return false;
+                    }
+
                     match line.origin() {
                         '-' => {
-                            assert!(
-                                prev.is_none(),
-                                "Expected number of deletions <= 1 per commit ({} -> {})",
-                                commits.0.id(),
-                                commits.1.id(),
-                            );
-                            let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
-                            let krate = serde_json::from_str::<Crate>(krate)
-                                .expect("couldn't deserialize crate");
+                            if prev.is_some() {
+                                error =
+                                    Err("Expected number of deletions <= 1 per commit".to_owned());
+                                return false;
+                            }
+
+                            let krate = match str::from_utf8(line.content()) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    error = Err(format!("Non UTF-8 diff: {e:?}"));
+                                    return false;
+                                }
+                            };
+                            let krate = match serde_json::from_str::<Crate>(krate) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    error = Err(format!("Couldn't deserialize crate: {e:?}"));
+                                    return false;
+                                }
+                            };
 
                             prev = Some(krate);
                         }
                         '+' => {
-                            assert!(
-                                next.is_none(),
-                                "Expected number of additions = 1 per commit ({} -> {})",
-                                commits.0.id(),
-                                commits.1.id(),
-                            );
-                            let krate = str::from_utf8(line.content()).expect("non-utf8 diff");
-                            let krate = serde_json::from_str::<Crate>(krate)
-                                .expect("couldn't deserialize crate");
+                            if next.is_some() {
+                                error =
+                                    Err("Expected number of additions = 1 per commit".to_owned());
+                                return false;
+                            }
+
+                            let krate = match str::from_utf8(line.content()) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    error = Err(format!("Non UTF-8 diff: {e:?}"));
+                                    return false;
+                                }
+                            };
+                            let krate = match serde_json::from_str::<Crate>(krate) {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    error = Err(format!("Couldn't deserialize crate: {e:?}"));
+                                    return false;
+                                }
+                            };
 
                             next = Some(krate);
                         }
@@ -271,13 +325,14 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
         }),
     )?;
 
-    assert!(
-        next.is_some(),
-        "Expected number of additions = 1 per commit ({} -> {})",
-        commits.0.id(),
-        commits.1.id(),
-    );
-    let next = next.expect("Expected number of additions = 1 per commit");
+    let err =
+        |e| git2::Error::from_str(&format!("{e} ({} -> {})", commits.0.id(), commits.1.id(),));
+
+    if let Err(e) = error {
+        return Err(err(&*e));
+    }
+
+    let next = next.ok_or_else(|| err("Expected number of additions = 1 per commit"))?;
     match (prev.as_ref().map(|c| c.yanked), next.yanked) {
         /* was yanked?, is yanked? */
         (None, false) => {
@@ -297,8 +352,9 @@ fn diff_one(diff: Diff, commits: (&Commit, &Commit)) -> Result<(Crate, ActionKin
         }
         _unexpected => {
             // Something unexpected happened
-            log::warn!("Unexpected diff_one input: {:?}, {:?}", next, prev);
-            Err(git2::Error::from_str("Unexpected diff"))
+            Err(err(&format!(
+                "Unexpected diff_one input: {prev:?} -> {next:?} ",
+            )))
         }
     }
 }
