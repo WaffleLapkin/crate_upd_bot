@@ -6,6 +6,8 @@ pub struct Config {
     /// Channel to post **ALL** updates
     #[serde(default)]
     pub channel: Option<i64>,
+    #[serde(default)]
+    pub error_report_channel_id: Option<i64>,
     /// Delay between index fetches
     #[serde(default = "defaults::pull_delay")]
     pub pull_delay: Duration,

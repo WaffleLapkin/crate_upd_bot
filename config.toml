@@ -1,5 +1,9 @@
-# # Channel to post **ALL** updates (leave comment to turn this feature off)
+# # Channel (or any chat id, really) to post **ALL** updates (leave comment to turn this feature off)
 # channel =
+
+# # Channel (or any chat id, really) to send errors too (leave comment to turn this feature off).
+# # You can set your user id here to get notified about problems with the bot
+# error_report_channel_id =
 
 # # Delay between index fetches
 # pull_delay = { secs = 300, nanos = 0 } # 5 min
