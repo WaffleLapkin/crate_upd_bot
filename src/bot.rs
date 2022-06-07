@@ -1,21 +1,19 @@
 use std::{fmt::Debug, ops::Not, path::PathBuf, sync::Arc};
 
 use fntools::value::ValueExt;
-use futures::{future, Future, FutureExt};
 use teloxide::{
-    payloads::SendMessageSetters,
+    dispatching::UpdateFilterExt,
+    dptree::deps,
     prelude::{Requester, *},
-    types::{Me, Message},
-    utils::command::{BotCommand, ParseError},
+    utils::command::{BotCommands, ParseError},
     RequestError,
 };
-use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERSION};
 
 type OptString = Option<String>;
 
-#[derive(BotCommand, PartialEq, Eq, Debug)]
+#[derive(BotCommands, Clone, PartialEq, Eq, Debug)]
 #[command(rename = "lowercase", parse_with = "split")]
 enum Command {
     Start,
@@ -35,17 +33,7 @@ enum HErr {
 }
 
 pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
-    let Me { user, .. } = bot.get_me().await.expect("Couldn't get myself :(");
-    let name = user.username.expect("Bots *must* have usernames");
-
-    let commands = |(
-        UpdateWithCx {
-            update: msg,
-            requester: bot,
-        },
-        cmd,
-    ): (UpdateWithCx<Bot, Message>, Command),
-                    (db, cfg): (Database, Arc<Config>)| async move {
+    let commands = |bot: Bot, msg: Message, cmd: Command, db: Database, cfg: Arc<Config>| async move {
         let chat_id = msg.chat.id;
 
         check_privileges(&bot, &msg).await?;
@@ -146,11 +134,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         Ok::<_, HErr>(())
     };
 
-    let unblock = |UpdateWithCx {
-                       update,
-                       requester: bot,
-                   }: UpdateWithCx<Bot, ChatMemberUpdated>,
-                   (db, _cfg): (Database, Arc<Config>)| async move {
+    let unblock = |bot: Bot, update: ChatMemberUpdated, db: Database| async move {
         let ChatMemberUpdated {
             chat,
             old_chat_member,
@@ -182,26 +166,24 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
         Ok::<_, HErr>(())
     };
 
-    let ctx = (db.clone(), cfg.clone());
+    let handler = dptree::entry()
+        .branch(
+            Update::filter_message()
+                .filter_command::<Command>()
+                .endpoint(commands),
+        )
+        .branch(Update::filter_my_chat_member().endpoint(unblock));
 
-    let mut dp = Dispatcher::new(bot)
-        .messages_handler(move |rx| async move {
-            UnboundedReceiverStream::new(rx)
-                .commands(name)
-                .for_each_concurrent(None, err(with(ctx, commands)))
-                .await
-        })
-        .my_chat_members_handler(move |rx| async move {
-            UnboundedReceiverStream::new(rx)
-                .for_each_concurrent(None, err(with((db, cfg), unblock)))
-                .await
-        })
-        .setup_ctrlc_handler();
-
-    dp.dispatch().await;
+    Dispatcher::builder(bot, handler)
+        .dependencies(deps![db, cfg])
+        .default_handler(|_| async {})
+        .build()
+        .setup_ctrlc_handler()
+        .dispatch()
+        .await;
 }
 
-async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
+async fn list(chat_id: ChatId, db: &Database, cfg: &Config) -> Result<Vec<String>, HErr> {
     let mut subscriptions: Vec<_> = db.list_subscriptions(chat_id).await?.collect();
     for sub in &mut subscriptions {
         match Crate::read_last(sub, cfg).await {
@@ -223,7 +205,7 @@ async fn list(chat_id: i64, db: &Database, cfg: &Config) -> Result<Vec<String>, 
 
 async fn check_privileges(bot: &Bot, msg: &Message) -> Result<(), HErr> {
     if !msg.chat.is_private() {
-        let admins = bot.get_chat_administrators(msg.chat_id()).await?;
+        let admins = bot.get_chat_administrators(msg.chat.id).await?;
 
         let user_id = msg.from().ok_or(HErr::GetUser)?.id;
         if admins
@@ -240,7 +222,7 @@ async fn check_privileges(bot: &Bot, msg: &Message) -> Result<(), HErr> {
 }
 
 async fn subscribe(
-    chat_id: i64,
+    chat_id: ChatId,
     krate: &str,
     db: &Database,
     cfg: &Config,
@@ -263,29 +245,6 @@ async fn subscribe(
         Ok(Some(ver))
     } else {
         Ok(None)
-    }
-}
-
-// why aren't we in an FP lang? :(
-fn with<A, B, U>(ctx: B, f: impl Fn(A, B) -> U) -> impl Fn(A) -> U
-where
-    B: Clone,
-{
-    move |a| f(a, ctx.clone())
-}
-
-/// Process errors (log)
-fn err<T, E, F>(f: impl Fn(T) -> F) -> impl Fn(T) -> future::Map<F, fn(Result<(), E>) -> ()>
-where
-    F: Future<Output = Result<(), E>>,
-    E: Debug,
-{
-    move |x| {
-        f(x).map(|r| {
-            if let Err(err) = r {
-                log::error!("Error in handler: {:?}", err);
-            }
-        })
     }
 }
 

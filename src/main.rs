@@ -393,7 +393,7 @@ async fn notify(krate: Crate, action: ActionKind, bot: &Bot, db: &Database, cfg:
 
 async fn notify_inner(
     bot: &Bot,
-    chat_id: i64,
+    chat_id: ChatId,
     msg: &str,
     cfg: &cfg::Config,
     krate: &Crate,

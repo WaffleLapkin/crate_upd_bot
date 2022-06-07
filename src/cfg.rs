@@ -1,13 +1,14 @@
 use fntools::value::ValueExt;
 use std::{collections::HashSet, error::Error, fs::File, io::Read, time::Duration};
+use teloxide::types::ChatId;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Config {
     /// Channel to post **ALL** updates
     #[serde(default)]
-    pub channel: Option<i64>,
+    pub channel: Option<ChatId>,
     #[serde(default)]
-    pub error_report_channel_id: Option<i64>,
+    pub error_report_channel_id: Option<ChatId>,
     /// Delay between index fetches
     #[serde(default = "defaults::pull_delay")]
     pub pull_delay: Duration,
