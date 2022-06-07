@@ -1,4 +1,5 @@
 use futures::Future;
+use teloxide::types::ChatId;
 use tokio_postgres::{
     tls::MakeTlsConnect, types::Type, Client, Config, Connection, Error, Socket, Statement,
 };
@@ -31,7 +32,7 @@ impl Database {
         Ok((this, connection))
     }
 
-    pub async fn subscribe(&self, chat_id: i64, krate: &str) -> Result<(), Error> {
+    pub async fn subscribe(&self, ChatId(chat_id): ChatId, krate: &str) -> Result<(), Error> {
         let stmt = &self.prepared.subscribe;
 
         self.inner.execute(stmt, &[&chat_id, &krate]).await?;
@@ -39,7 +40,7 @@ impl Database {
         Ok(())
     }
 
-    pub async fn unsubscribe(&self, chat_id: i64, krate: &str) -> Result<(), Error> {
+    pub async fn unsubscribe(&self, ChatId(chat_id): ChatId, krate: &str) -> Result<(), Error> {
         let stmt = &self.prepared.unsubscribe;
 
         self.inner.execute(stmt, &[&chat_id, &krate]).await?;
@@ -47,7 +48,10 @@ impl Database {
         Ok(())
     }
 
-    pub async fn list_subscribers(&self, krate: &str) -> Result<impl Iterator<Item = i64>, Error> {
+    pub async fn list_subscribers(
+        &self,
+        krate: &str,
+    ) -> Result<impl Iterator<Item = ChatId>, Error> {
         let stmt = &self.prepared.list_subscribers;
 
         let res = self
@@ -55,14 +59,15 @@ impl Database {
             .query(stmt, &[&krate])
             .await?
             .into_iter()
-            .map(|row| row.get(0));
+            .map(|row| row.get(0))
+            .map(ChatId);
 
         Ok(res)
     }
 
     pub async fn list_subscriptions(
         &self,
-        chat_id: i64,
+        ChatId(chat_id): ChatId,
     ) -> Result<impl Iterator<Item = String>, Error> {
         let stmt = &self.prepared.list_subscriptions;
 
