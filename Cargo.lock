@@ -163,7 +163,7 @@ dependencies = [
 
 [[package]]
 name = "crate_upd_bot"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "arraylib",
  "async-trait",

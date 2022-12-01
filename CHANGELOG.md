@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.16
+
+### Fixed
+
+- More "delete" commits are being skipped, which prevent unknown git errors
+
 ## 0.1.15
 
 ### Changed
