@@ -47,7 +47,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                      In case you want to see <b>all</b> updates go to @crates_updates\n\
                      \n\
                      Author: @wafflelapkin\n\
-                     His channel [ru]: @ihatereality\n\
+                     Its channel [ru]: @ihatereality\n\
                      My source: <a href='https://github.com/WaffleLapkin/crate_upd_bot'>[github]</a>\n\
                      Version: <code>{VERSION}</code>"
                 );
