@@ -13,11 +13,7 @@ use futures::future::{self, pending};
 use git2::{Commit, Delta, Diff, DiffOptions, Repository, Sort};
 use log::info;
 use std::str;
-use teloxide::{
-    adaptors::{AutoSend, DefaultParseMode},
-    prelude::*,
-    types::ParseMode,
-};
+use teloxide::{adaptors::DefaultParseMode, prelude::*, types::ParseMode};
 use tokio::sync::{
     mpsc::{self, Sender},
     oneshot,
@@ -34,7 +30,7 @@ mod util;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-type Bot = AutoSend<DefaultParseMode<teloxide::Bot>>;
+type Bot = DefaultParseMode<teloxide::Bot>;
 
 #[tokio::main]
 async fn main() {
@@ -113,9 +109,7 @@ async fn main() {
         })
     };
 
-    let bot = teloxide::Bot::new(&config.bot_token)
-        .parse_mode(ParseMode::Html)
-        .auto_send();
+    let bot = teloxide::Bot::new(&config.bot_token).parse_mode(ParseMode::Html);
 
     let notify_loop = async {
         while let Some((res, _unblock)) = rx.recv().await {

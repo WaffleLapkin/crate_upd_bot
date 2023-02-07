@@ -1,5 +1,5 @@
 use std::{
-    future::Future,
+    future::IntoFuture,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -23,7 +23,7 @@ pub fn crate_path(name: &str) -> PathBuf {
 pub async fn tryn<F, Fut, T, E>(n: usize, delay: Duration, mut f: F) -> Result<T, E>
 where
     F: FnMut() -> Fut,
-    Fut: Future<Output = Result<T, E>>,
+    Fut: IntoFuture<Output = Result<T, E>>,
 {
     for _ in 1..n {
         if let ret @ Ok(_) = f().await {

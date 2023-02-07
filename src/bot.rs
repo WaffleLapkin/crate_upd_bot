@@ -14,12 +14,12 @@ use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERS
 type OptString = Option<String>;
 
 #[derive(BotCommands, Clone, PartialEq, Eq, Debug)]
-#[command(rename = "lowercase", parse_with = "split")]
+#[command(rename_rule = "lowercase", parse_with = "split")]
 enum Command {
     Start,
-    #[command(parse_with = "opt")]
+    #[command(parse_with = opt)]
     Subscribe(OptString),
-    #[command(parse_with = "opt")]
+    #[command(parse_with = opt)]
     Unsubscribe(OptString),
     List,
 }
@@ -177,8 +177,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
     Dispatcher::builder(bot, handler)
         .dependencies(deps![db, cfg])
         .default_handler(|_| async {})
+        .enable_ctrlc_handler()
         .build()
-        .setup_ctrlc_handler()
         .dispatch()
         .await;
 }
