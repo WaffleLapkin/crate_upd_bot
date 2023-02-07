@@ -206,7 +206,14 @@ fn pull(
             continue;
         }
 
-        if message.starts_with("Merge remote-tracking branch") {
+        if message == "Delete crates" {
+            log::warn!("Skip delete crates commit#{}", next.id());
+            continue;
+        }
+
+        if message.starts_with("Merge remote-tracking branch")
+            || message.starts_with("Merge branch")
+        {
             log::warn!("Skip merge commit#{}", next.id());
             continue;
         }
