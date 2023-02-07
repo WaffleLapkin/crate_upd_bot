@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## 0.1.15
+
+### Changed
+
+- Dependencies were updated
+
+### Fixed
+
+- Pronouns of the author updated to the current ones
+- Some clippy warnings
+
 ## 0.1.14
 
 ### Changed

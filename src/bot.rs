@@ -14,12 +14,12 @@ use crate::{cfg::Config, db::Database, krate::Crate, util::crate_path, Bot, VERS
 type OptString = Option<String>;
 
 #[derive(BotCommands, Clone, PartialEq, Eq, Debug)]
-#[command(rename = "lowercase", parse_with = "split")]
+#[command(rename_rule = "lowercase", parse_with = "split")]
 enum Command {
     Start,
-    #[command(parse_with = "opt")]
+    #[command(parse_with = opt)]
     Subscribe(OptString),
-    #[command(parse_with = "opt")]
+    #[command(parse_with = opt)]
     Unsubscribe(OptString),
     List,
 }
@@ -47,10 +47,9 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                      In case you want to see <b>all</b> updates go to @crates_updates\n\
                      \n\
                      Author: @wafflelapkin\n\
-                     His channel [ru]: @ihatereality\n\
+                     Its channel [ru]: @ihatereality\n\
                      My source: <a href='https://github.com/WaffleLapkin/crate_upd_bot'>[github]</a>\n\
-                     Version: <code>{version}</code>", 
-                    version = VERSION
+                     Version: <code>{VERSION}</code>"
                 );
                 bot.send_message(chat_id, greeting).await?;
             }
@@ -59,9 +58,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                     bot.send_message(
                         chat_id,
                         format!(
-                            "You've successfully subscribed for updates on <code>{}</code>{} \
-                             crate. Use /unsubscribe to unsubscribe.",
-                            krate, ver
+                            "You've successfully subscribed for updates on \
+                             <code>{krate}</code>{ver} crate. Use /unsubscribe to unsubscribe."
                         ),
                     )
                     .disable_web_page_preview(true)
@@ -70,7 +68,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 None => {
                     bot.send_message(
                         chat_id,
-                        format!("Error: there is no such crate <code>{}</code>.", krate),
+                        format!("Error: there is no such crate <code>{krate}</code>."),
                     )
                     .await?;
                 }
@@ -90,9 +88,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 bot.send_message(
                     chat_id,
                     format!(
-                        "You've successfully unsubscribed for updates on <code>{}</code> crate. \
-                         Use /subscribe to subscribe back.",
-                        krate
+                        "You've successfully unsubscribed for updates on <code>{krate}</code> \
+                         crate. Use /subscribe to subscribe back."
                     ),
                 )
                 .await?;
@@ -177,8 +174,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
     Dispatcher::builder(bot, handler)
         .dependencies(deps![db, cfg])
         .default_handler(|_| async {})
+        .enable_ctrlc_handler()
         .build()
-        .setup_ctrlc_handler()
         .dispatch()
         .await;
 }
