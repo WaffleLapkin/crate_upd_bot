@@ -49,8 +49,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                      Author: @wafflelapkin\n\
                      His channel [ru]: @ihatereality\n\
                      My source: <a href='https://github.com/WaffleLapkin/crate_upd_bot'>[github]</a>\n\
-                     Version: <code>{version}</code>", 
-                    version = VERSION
+                     Version: <code>{VERSION}</code>"
                 );
                 bot.send_message(chat_id, greeting).await?;
             }
@@ -59,9 +58,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                     bot.send_message(
                         chat_id,
                         format!(
-                            "You've successfully subscribed for updates on <code>{}</code>{} \
-                             crate. Use /unsubscribe to unsubscribe.",
-                            krate, ver
+                            "You've successfully subscribed for updates on <code>{krate}</code>{ver} \
+                             crate. Use /unsubscribe to unsubscribe."
                         ),
                     )
                     .disable_web_page_preview(true)
@@ -70,7 +68,7 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 None => {
                     bot.send_message(
                         chat_id,
-                        format!("Error: there is no such crate <code>{}</code>.", krate),
+                        format!("Error: there is no such crate <code>{krate}</code>."),
                     )
                     .await?;
                 }
@@ -90,9 +88,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 bot.send_message(
                     chat_id,
                     format!(
-                        "You've successfully unsubscribed for updates on <code>{}</code> crate. \
-                         Use /subscribe to subscribe back.",
-                        krate
+                        "You've successfully unsubscribed for updates on <code>{krate}</code> crate. \
+                         Use /subscribe to subscribe back."
                     ),
                 )
                 .await?;

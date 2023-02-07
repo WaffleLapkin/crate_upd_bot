@@ -59,7 +59,7 @@ async fn main() {
         // docs says to do so
         tokio::spawn(async move {
             if let Err(e) = conn.await {
-                eprintln!("Database connection error: {}", e);
+                eprintln!("Database connection error: {e}");
             }
         });
 
