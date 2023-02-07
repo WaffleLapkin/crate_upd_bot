@@ -58,8 +58,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                     bot.send_message(
                         chat_id,
                         format!(
-                            "You've successfully subscribed for updates on <code>{krate}</code>{ver} \
-                             crate. Use /unsubscribe to unsubscribe."
+                            "You've successfully subscribed for updates on \
+                             <code>{krate}</code>{ver} crate. Use /unsubscribe to unsubscribe."
                         ),
                     )
                     .disable_web_page_preview(true)
@@ -88,8 +88,8 @@ pub async fn run(bot: Bot, db: Database, cfg: Arc<Config>) {
                 bot.send_message(
                     chat_id,
                     format!(
-                        "You've successfully unsubscribed for updates on <code>{krate}</code> crate. \
-                         Use /subscribe to subscribe back."
+                        "You've successfully unsubscribed for updates on <code>{krate}</code> \
+                         crate. Use /subscribe to subscribe back."
                     ),
                 )
                 .await?;
