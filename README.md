@@ -1,3 +1,10 @@
+> [!WARNING]
+> 
+> (2024-02-13)
+> This project is archived & the bot is no longer running.
+> I have not been able to make the git pulling mechanism work reliably, across the index squashes and the bot was generally very junky.
+> Sorry to anyone who used the bot, but I'm not interested anymore in maintaining this.
+
 ## crate_upd_bot
 
 [![CI status](https://github.com/WaffleLapkin/crate_upd_bot/workflows/Continuous%20integration/badge.svg)](https://github.com/WaffleLapkin/crate_upd_bot/actions)
